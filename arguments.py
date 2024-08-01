@@ -1,99 +1,198 @@
 from dataclasses import asdict, dataclass, field, fields
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import transformers
 
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: str = field(metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"})
-    version: str = field(metadata={"help": "Version of the training mode"})
-    tune_backbone: bool = field(metadata={"help": "Whether to tune the llm backbone of the model"})
-    tune_encoder: bool = field(metadata={"help": "Whether to tune the vision encoder of the model"})
-    tune_mm_adapter: bool = field(metadata={"help": "Whether to tune the multimodal adapter of the model"})
+    model_name_or_path: str = field(metadata={
+        "help": "Path to pretrained model or model identifier from "
+                "huggingface.co/models"
+    })
+    version: str = field(metadata={
+        "help": "Version of the training mode"
+    })
+
+    tune_backbone: bool = field(metadata={
+        "help": "Whether to tune the llm backbone of the model"
+    })
+    tune_vision_tower: bool = field(metadata={
+        "help": "Whether to tune the vision encoder of the model"
+    })
+    tune_mm_adapter: bool = field(metadata={
+        "help": "Whether to tune the multimodal adapter of the model"
+    })
 
     vision_tower: str = field(metadata={"help": "Name of the vision tower"})
-    mm_adapter: str = field(metadata={"help": "Name of the multimodal adapter"})
-    pretrained_mm_adapter_path: Optional[str] = field(default=None, metadata={"help": "Path to pretrained multimodal adapter"})
+    mm_adapter: str = field(metadata={
+        "help": "Name of the multimodal adapter"
+    })
+    pretrained_mm_adapter_path: Optional[str] = field(default=None, metadata={
+        "help": "Path to pretrained multimodal adapter"
+    })
 
-    mm_use_im_start_end: bool = field(default=False, metadata={"help": "Whether to use image start and end tokens in multimodal adapter"})
-    mm_use_im_patch_token: bool = field(default=True, metadata={"help": "Whether to use image patch tokens in multimodal adapter"})
-    mm_patch_merge_type: str = field(default='flat', metadata={"help": "Type of merging image patch tokens"})
-    mm_vision_select_layer: int = field(default=-1, metadata={"help": "Layer of the vision encoder to use for multimodal adapter"})
-    mm_vision_select_feature: str = field(default='patch', metadata={"help": "Feature of the vision encoder to use for multimodal adapter"})
+    mm_use_im_start_end: bool = field(default=False, metadata={
+        "help": "Whether to use image start and end tokens in multimodal "
+                "adapter"
+    })
+    mm_use_im_patch_token: bool = field(default=True, metadata={
+        "help": "Whether to use image patch tokens in multimodal adapter"
+    })
+    mm_patch_merge_type: str = field(default='flat', metadata={
+        "help": "Type of merging image patch tokens"
+    })
+    mm_vision_select_layer: int = field(default=-1, metadata={
+        "help": "Layer of the vision encoder to use for multimodal adapter"
+    })
+    mm_vision_select_feature: Literal['patch', 'cls_patch'] = \
+        field(default='patch', metadata={
+            "help": "Feature of the vision encoder to use for multimodal "
+                    "adapter"
+        })
 
     # moe_vision_tower arguments:
-    vision_expert_list: List[str] = field(default_factory=list,  metadata={"help": "List of experts for vision tower"})
-    m_patch_one_token: List[int] = field(default_factory=list, metadata={"help": "List of number of patches combined into one token for each expert"})
+    vision_expert_list: List[str] = field(default_factory=list,  metadata={
+        "help": "List of experts for vision tower"
+    })
+    m_patch_one_token: List[int] = field(default_factory=list, metadata={
+        "help": "List of number of patches combined into one token for each "
+                "expert"
+    })
+
+    def __post_init__(self):
+        assert self.mm_patch_merge_type in ["flat", "unpad"], \
+            f"mm_patch_merge_type should be one of `flat` or `unpad`, got " \
+            f"{self.mm_patch_merge_type}"
+        assert self.mm_vision_select_feature in ["patch", "cls_patch"], \
+            f"mm_vision_select_feature should be one of `patch` or " \
+            f"`cls_patch`, got {self.mm_vision_select_feature}"
+        assert not self.tune_vision_tower, "Tuning vision tower is not " \
+                                           "supported yet"
 
     def __str__(self):
         attrs_as_str = [f"{k}={v},\n" for k, v in asdict(self).items()]
         return f"{self.__class__.__name__}(\n{''.join(attrs_as_str)})"
-    
+
     __repr__ = __str__
 
 
 @dataclass
 class DataArguments:
     data_path: str = field(metadata={"help": "Path to json data file"})
-    image_folder: Optional[str] = field(default=None, metadata={"help": "Path to image folder"})
+    image_folder: Optional[str] = field(default=None, metadata={
+        "help": "Path to image folder"
+    })
 
-    lazy_preprocess: bool = field(default=False, metadata={"help": "Whether to lazy preprocess data"})
-    is_multimodal: bool = field(default=False, metadata={"help": "Whether the data is multimodal"})
-    image_aspect_ratio: str = field(default='square', metadata={"help": "Aspect ratio of the image"})
+    lazy_preprocess: bool = field(default=False, metadata={
+        "help": "Whether to lazy preprocess data"
+    })
+    # must multimodal
+    # is_multimodal: bool = field(default=False, metadata={
+    # "help": "Whether the data is multimodal"})
+    image_aspect_ratio: str = field(default='square', metadata={
+        "help": "Aspect ratio of the image"
+    })
 
     def __str__(self):
         attrs_as_str = [f"{k}={v},\n" for k, v in asdict(self).items()]
         return f"{self.__class__.__name__}(\n{''.join(attrs_as_str)})"
-    
+
     __repr__ = __str__
 
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
-    cache_dir: Optional[str] = field(default=None, metadata={"help": "Path to cache directory"})
+    cache_dir: Optional[str] = field(default=None, metadata={
+        "help": "Path to cache directory"
+    })
     # FIXME why overwrite the default value of remove_unused_columns
-    remove_unused_columns: bool = field(default=False, metadata={"help": "Whether to remove unused columns from the dataset"})
-    # FIXME What is this use for
-    mpt_attn_impl: str = field(default='triton', metadata={"help": "Type of mpt attention implementation to use"})
-    attn_impl: str = field(default="flash_attention_2", metadata={"help": "Type of attention implementation to use"})
-    model_max_length: int = field(default=512, metadata={"help": "Maximum sequence length generated by model."
-                                                         "Sequences will be right padded (and possibly truncated)."})
+    remove_unused_columns: bool = field(default=False, metadata={
+        "help": "Whether to remove unused columns from the dataset"
+    })
+    attn_impl: Literal['eager', 'sdpa', 'flash_attention_2'] = \
+        field(default="flash_attention_2", metadata={
+            "help": "Type of attention implementation to use: eager, sdpa, "
+                    "flash_attention_2"
+        })
+    model_max_length: int = field(default=512, metadata={
+        "help": "Maximum sequence length generated by model. Sequences will "
+                "be right padded (and possibly truncated)."
+    })
 
     # quantization
-    double_quant: bool = field(default=True, metadata={"help": "Compress the quantization statistics through double quantization."})
-    quant_type: str = field(default="nf4",metadata={"help": "Quantization data type to use. Should be one of `fp4` or `nf4`."})
+    double_quant: bool = field(default=True, metadata={
+        "help": "Compress the quantization statistics through double "
+                "quantization."
+    })
+    quant_type: Literal['nf4', 'fp4'] = field(default="nf4", metadata={
+        "help": "Quantization data type to use. Should be one of `fp4` or "
+                "`nf4`."
+    })
     bits: int = field(default=16, metadata={"help": "How many bits to use."})
-    
+
     # lora
-    lora_enable: bool = field(default=False, metadata={"help": "Whether to enable LoRA"})
+    lora_enable: bool = field(default=False, metadata={
+        "help": "Whether to enable LoRA"
+    })
     lora_r: int = field(default=64, metadata={"help": "LoRA r"})
     lora_alpha: int = field(default=16, metadata={"help": "LoRA alpha"})
-    lora_dropout: float = field(default=0.05, metadata={"help": "LoRA dropout"})
-    lora_weight_path: Optional[str] = field(default=None, metadata={"help": "Path to LoRA weight file"})
+    lora_dropout: float = field(default=0.05, metadata={
+        "help": "LoRA dropout"
+    })
+    lora_weight_path: Optional[str] = field(default=None, metadata={
+        "help": "Path to LoRA weight file"
+    })
     # FIXME why none?
-    lora_bias: str = field(default="none")
+    lora_bias: Literal['none', 'all', 'lora_only'] = \
+        field(default="none", metadata={"help": "LoRA bias"})
 
     # FIXME why none?
-    mm_adapter_lr: Optional[float] = field(default=None, metadata={"help": "Learning rate for multimodal adapter"})
+    mm_adapter_lr: Optional[float] = field(default=None, metadata={
+        "help": "Learning rate for multimodal adapter"
+    })
 
     # FIXME
     group_by_modality_length: bool = field(default=False)
 
-    def __str__(self):
-        self_as_dict = asdict(self)
+    def __post_init__(self):
+        super().__post_init__()
+        assert self.lora_bias in ["none", "all", "lora_only"], \
+            f"lora_bias should be one of `none`, `all`, or `lora_only` got " \
+            f"{self.lora_bias}"
+        assert self.quant_type in ["fp4", "nf4"], \
+            f"quant_type should be one of `fp4` or `nf4`, got " \
+            f"{self.quant_type}"
+        assert self.attn_impl in ["eager", "sdpa", "flash_attention_2"], \
+            f"attn_impl should be one of `eager`, `sdpa`, or " \
+            f"`flash_attention_2`, got {self.attn_impl}"
 
-        self_as_dict = {k: f"<{k.upper()}>" if k.endswith("_token") else v for k, v in self_as_dict.items()}
+    def __str__(self):
+        self_as_dict = {}
+        # hide the token values
+        for k, v in asdict(self).items():
+            self_as_dict[k] = f"<{k.upper()}>" if k.endswith("_token") else v
+
+        # seperate the super class attributes
         super_key = [f.name for f in fields(transformers.TrainingArguments)]
         super_as_dict = {}
-        for key in super_key:
-            super_as_dict[key] = self_as_dict.pop(key)
-        sorted_super_dict = {k: super_as_dict[k] for k in sorted(super_as_dict)}
+        for k in super_key:
+            super_as_dict[k] = self_as_dict.pop(k)
+
+        # get the sorted super class attributes
+        sorted_super_dict = {}
+        for k in sorted(super_as_dict):
+            sorted_super_dict[k] = super_as_dict[k]
+
+        # add the sorted super class attributes to the self_as_dict
         self_as_dict.update(sorted_super_dict)
 
         # Remove deprecated arguments. That code should be removed once
-        # those deprecated arguments are removed from TrainingArguments. (TODO: v5)
+        # those deprecated arguments are removed from TrainingArguments.
+        # (TODO: v5)
         del self_as_dict["per_gpu_train_batch_size"]
         del self_as_dict["per_gpu_eval_batch_size"]
+
         attrs_as_str = [f"{k}={v},\n" for k, v in self_as_dict.items()]
+
         return f"{self.__class__.__name__}(\n{''.join(attrs_as_str)})"

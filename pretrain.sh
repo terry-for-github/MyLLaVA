@@ -16,7 +16,7 @@ command+=" --model_name_or_path=lmsys/vicuna-7b-v1.5"
 command+=" --version=plain"
 
 command+=" --tune_backbone=false"
-command+=" --tune_encoder=false"
+command+=" --tune_vision_tower=false"
 command+=" --tune_mm_adapter=true"
 
 command+=" --vision_tower=openai/clip-vit-large-patch14-336"
