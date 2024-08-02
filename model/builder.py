@@ -1,27 +1,24 @@
 
 import torch
+from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
 from .llava_llama import LlavaLlamaForCausalLM
 
 
-def get_bnb_args(training_args: TrainingArguments,
-                 compute_dtype: torch.dtype) -> dict:
-    '''
-    Get BitsAndBytes args for from_pretrained method.
-    '''
+def get_bnb_args(training_args: TrainingArguments, compute_dtype: torch.dtype) -> dict:
+    '''Get BitsAndBytes args for from_pretrained method.'''
 
     if training_args.bits not in [4, 8]:
         return {}
 
-    from transformers import BitsAndBytesConfig
     return dict(
         device_map={"": training_args.device},
-        load_in_4bit=training_args.bits == 4,
-        load_in_8bit=training_args.bits == 8,
+        load_in_4bit=(training_args.bits == 4),
+        load_in_8bit=(training_args.bits == 8),
         quantization_config=BitsAndBytesConfig(
-            load_in_4bit=training_args.bits == 4,
-            load_in_8bit=training_args.bits == 8,
+            load_in_4bit=(training_args.bits == 4),
+            load_in_8bit=(training_args.bits == 8),
             llm_int8_skip_modules=["mm_adapter"],
             llm_int8_threshold=6.0,
             llm_int8_has_fp16_weight=False,
@@ -32,11 +29,9 @@ def get_bnb_args(training_args: TrainingArguments,
     )
 
 
-def get_causal_language_model(
-    model_args: ModelArguments,
-    training_args: TrainingArguments,
-    compute_dtype: torch.dtype
-) -> LlavaLlamaForCausalLM:
+def get_causal_language_model(model_args: ModelArguments,
+                              training_args: TrainingArguments,
+                              compute_dtype: torch.dtype) -> LlavaLlamaForCausalLM:
 
     # Not support bits_and_bytes right now
     bnb_args = {} if True else get_bnb_args(training_args, compute_dtype)
@@ -63,15 +58,16 @@ def get_causal_language_model(
         assert model_args.pretrained_mm_adapter_path is not None
         mm_adapter_state_dict = torch.load(
             model_args.pretrained_mm_adapter_path,
-            map_location='cpu', weights_only=True
+            map_location='cpu',
+            weights_only=True
         )
         assert isinstance(mm_adapter_state_dict, dict)
-        print('[DEBUG]', 1, '================================================')
+        print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'Loading pretrained mm_adapter from:')
         print('[DEBUG]', 1, model_args.pretrained_mm_adapter_path)
         print('[DEBUG]', 1, 'mm_adapter_state_dict')
         print('[DEBUG]', 1, mm_adapter_state_dict.keys())
-        print('[DEBUG]', 1, '================================================')
+        print('[DEBUG]', 1, '===============================================================')
         # remove 'model.mm_adapter' prefix
         no_prefix_state_dict = {}
         for k, v in mm_adapter_state_dict.items():
@@ -80,15 +76,12 @@ def get_causal_language_model(
 
     # Set requires_grad
     assert mm_adapter is not None and vision_tower is not None
-    print('[DEBUG]', 1, '====================================================')
+    print('[DEBUG]', 1, '===================================================================')
     print('[DEBUG]', 1, 'default requires_grad:')
-    print('[DEBUG]', 1, 'backbone',
-          next(causal_lm.get_model().parameters()).requires_grad)
-    print('[DEBUG]', 1, 'vision_tower',
-          next(vision_tower.parameters()).requires_grad)
-    print('[DEBUG]', 1, 'mm_adapter',
-          next(mm_adapter.parameters()).requires_grad)
-    print('[DEBUG]', 1, '====================================================')
+    print('[DEBUG]', 1, 'backbone', next(causal_lm.get_model().parameters()).requires_grad)
+    print('[DEBUG]', 1, 'vision_tower', next(vision_tower.parameters()).requires_grad)
+    print('[DEBUG]', 1, 'mm_adapter', next(mm_adapter.parameters()).requires_grad)
+    print('[DEBUG]', 1, '===================================================================')
     causal_lm.get_model().requires_grad_(model_args.tune_backbone)
     vision_tower.requires_grad_(model_args.tune_vision_tower)
     mm_adapter.requires_grad_(model_args.tune_mm_adapter)

@@ -9,11 +9,11 @@ from .mm_adapter.builder import build_mm_adapter
 
 class LlavaMetaModel:
     def __init__(self, config):
-        print('[DEBUG]', 1, '================================================')
+        assert hasattr(config, 'vision_tower') == hasattr(config, 'mm_adapter')
+        print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'LlavaMetaModel init')
         print('[DEBUG]', 1, 'config', config)
-        print('[DEBUG]', 1, '================================================')
-        assert hasattr(config, 'vision_tower') == hasattr(config, 'mm_adapter')
+        print('[DEBUG]', 1, '===============================================================')
         self.config = config
         # self.vision_tower = build_vision_tower(config)
         # self.mm_adapter = build_mm_adapter(config)
@@ -25,13 +25,12 @@ class LlavaMetaModel:
         return getattr(self, 'mm_adapter', None)
 
     def init_vision_modules(self, model_args):
-        assert not hasattr(self, 'vision_tower') \
-            and not hasattr(self, 'mm_adapter')
-        print('[DEBUG]', 1, '================================================')
+        assert not hasattr(self, 'vision_tower') and not hasattr(self, 'mm_adapter')
+        print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'init_vision_modules')
         print('[DEBUG]', 1, 'model_args', model_args)
         print('[DEBUG]', 1, 'self', self)
-        print('[DEBUG]', 1, '================================================')
+        print('[DEBUG]', 1, '===============================================================')
 
         # TODO what is this means
         # if model_args.mm_patch_merge_type == 'unpad':
@@ -60,8 +59,7 @@ class LlavaMetaModel:
 
         self.config.mm_hidden_size = self.vision_tower.hidden_size
         self.config.mm_vision_select_layer = model_args.mm_vision_select_layer
-        self.config.mm_vision_select_feature = \
-            model_args.mm_vision_select_feature
+        self.config.mm_vision_select_feature = model_args.mm_vision_select_feature
         self.config.mm_patch_merge_type = model_args.mm_patch_merge_type
 
         if len(model_args.vision_expert_list) > 0:

@@ -21,22 +21,19 @@ def get_compute_dtype(training_args) -> torch.dtype:
 
 
 def train():
-    parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments)
-    )
-    model_args, data_args, training_args = \
-        parser.parse_args_into_dataclasses()
-    print('[DEBUG]', 1, '====================================================')
+    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    print('[DEBUG]', 1, '===================================================================')
     print('[DEBUG]', 1, model_args)
     print('[DEBUG]', 1, data_args)
     print('[DEBUG]', 1, training_args)
-    print('[DEBUG]', 1, '====================================================')
+    print('[DEBUG]', 1, '===================================================================')
 
     # compute_dtype in [torch.float16, torch.bfloat16, torch.float32]
     compute_dtype = get_compute_dtype(training_args)
 
-    # You need to have sentencepiece installed to convert a slow tokenizer to
-    # a fast one. --> pip install sentencepiece protobuf
+    # You need to have sentencepiece installed to convert a slow tokenizer to a fast one.
+    # --> pip install sentencepiece protobuf
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
@@ -46,16 +43,14 @@ def train():
         tokenizer.pad_token = tokenizer.unk_token
         conversation.set_default(model_args.version)
 
-    causal_lm = get_causal_language_model(
-        model_args, training_args, compute_dtype
-    )
+    causal_lm = get_causal_language_model(model_args, training_args, compute_dtype)
     causal_lm.init_vision_tokenizer(model_args, tokenizer)
 
-    print('[DEBUG]', 1, '====================================================')
+    print('[DEBUG]', 1, '===================================================================')
     print('[DEBUG]', 1, causal_lm)
     print('[DEBUG]', 1, tokenizer)
     print('[DEBUG]', 1, causal_lm.config)
-    print('[DEBUG]', 1, '====================================================')
+    print('[DEBUG]', 1, '===================================================================')
     # FIXME Update causal_llm.config
     # FIXME use cache or not?
     # causal_lm.config.use_cache = False
