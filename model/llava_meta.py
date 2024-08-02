@@ -2,24 +2,18 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 import torch
-from transformers import AutoConfig, AutoModelForCausalLM
-from transformers import LlamaConfig, LlamaModel, LlamaForCausalLM
 
-from vision_tower.builder import build_vision_tower
-from mm_adapter.builder import build_mm_adapter
-
-
-class LlavaConfig(LlamaConfig):
-    model_type = "llava_llama"
+from .vision_tower.builder import build_vision_tower
+from .mm_adapter.builder import build_mm_adapter
 
 
 class LlavaMetaModel:
     def __init__(self, config):
-        # =====================================================================
+        print('[DEBUG]', 1, '================================================')
         print('[DEBUG]', 1, 'LlavaMetaModel init')
         print('[DEBUG]', 1, 'config', config)
+        print('[DEBUG]', 1, '================================================')
         assert hasattr(config, 'vision_tower') == hasattr(config, 'mm_adapter')
-        # =====================================================================
         self.config = config
         # self.vision_tower = build_vision_tower(config)
         # self.mm_adapter = build_mm_adapter(config)
@@ -31,13 +25,13 @@ class LlavaMetaModel:
         return getattr(self, 'mm_adapter', None)
 
     def init_vision_modules(self, model_args):
-        # =====================================================================
         assert not hasattr(self, 'vision_tower') \
             and not hasattr(self, 'mm_adapter')
+        print('[DEBUG]', 1, '================================================')
         print('[DEBUG]', 1, 'init_vision_modules')
         print('[DEBUG]', 1, 'model_args', model_args)
         print('[DEBUG]', 1, 'self', self)
-        # =====================================================================
+        print('[DEBUG]', 1, '================================================')
 
         # TODO what is this means
         # if model_args.mm_patch_merge_type == 'unpad':
@@ -103,48 +97,3 @@ class LlavaMetaForCausalLM(ABC):
             pass
         elif model_args.mm_use_im_patch_token:
             pass
-
-
-class LlavaLlamaModel(LlamaModel, LlavaMetaModel):
-    config_class = LlavaConfig
-
-
-class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
-    config_class = LlavaConfig
-
-    def __init__(self, config):
-        super().__init__(config)
-        self.model = LlavaLlamaModel(config)
-        self.lm_head = torch.nn.Linear(config.hidden_size,
-                                       config.vocab_size,
-                                       bias=False)
-        # =====================================================================
-        print('[DEBUG]', 1, 'LlavaLlamaForCausalLM init')
-        print('[DEBUG]', 1, 'config tie weight')
-        print('[DEBUG]', 1, getattr(self.config, "tie_word_embeddings", None))
-        print('[DEBUG]', 1, getattr(self.config, "tie_encoder_decoder", None))
-        print('[DEBUG]', 1, '_init_weights', bool(self._init_weights))
-        print('[DEBUG]', 1, 'supports gradient_checkpointing')
-        print('[DEBUG]', 1, self.supports_gradient_checkpointing)
-        print('[DEBUG]', 1, 'gradient_checkpointing')
-        print('[DEBUG]', 1, self.model.gradient_checkpointing)
-        # =====================================================================
-
-        # Initialize weights and apply final processing
-        self.post_init()
-
-    def get_model(self):
-        return self.model
-
-    # def forward(self):
-    #     pass
-
-    # def generate(self):
-    #     pass
-
-    # def prepare_inputs_for_generation(self):
-    #     pass
-
-
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, LlavaLlamaForCausalLM)
