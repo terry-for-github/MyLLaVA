@@ -2,7 +2,7 @@ from dataclasses import asdict, dataclass, field
 from typing import List, Literal, Optional
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModelArguments:
     model_name_or_path: str = field(metadata={
         "help": "Path to pretrained model or model identifier from huggingface.co/models"

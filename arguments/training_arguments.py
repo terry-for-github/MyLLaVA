@@ -9,10 +9,6 @@ class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None, metadata={
         "help": "Path to cache directory"
     })
-    # FIXME why overwrite the default value of remove_unused_columns
-    remove_unused_columns: bool = field(default=False, metadata={
-        "help": "Whether to remove unused columns from the dataset"
-    })
     attn_impl: Literal['eager', 'sdpa', 'flash_attention_2'] = \
         field(default="flash_attention_2", metadata={
             "help": "Type of attention implementation to use: eager, sdpa, flash_attention_2"
@@ -61,6 +57,7 @@ class TrainingArguments(transformers.TrainingArguments):
         assert self.attn_impl in ["eager", "sdpa", "flash_attention_2"], \
             f"attn_impl should be one of `eager`, `sdpa`, or `flash_attention_2`, got " \
             f"{self.attn_impl}"
+        self.remove_unused_columns = False
 
     def __str__(self):
         self_as_dict = asdict(self)

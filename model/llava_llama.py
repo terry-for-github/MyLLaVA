@@ -17,9 +17,14 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaConfig
 
     def __init__(self, config):
-        super().__init__(config)
+        super(LlamaForCausalLM, self).__init__(config)
         self.model = LlavaLlamaModel(config)
+        self.vocab_size = config.vocab_size
         self.lm_head = torch.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
         print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'LlavaLlamaForCausalLM init')
         print('[DEBUG]', 1, 'config tie weight')
@@ -31,9 +36,6 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         print('[DEBUG]', 1, 'gradient_checkpointing')
         print('[DEBUG]', 1, self.model.gradient_checkpointing)
         print('[DEBUG]', 1, '===============================================================')
-
-        # Initialize weights and apply final processing
-        self.post_init()
 
     def get_model(self):
         return self.model

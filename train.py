@@ -3,10 +3,11 @@ import builtins
 
 import torch
 import transformers
+from transformers import Trainer
 
 from arguments import ModelArguments, DataArguments, TrainingArguments
 from model import get_causal_language_model
-import conversation
+from data_module import LazyMMDialogDataset, ImageLoader, DataCollator
 
 
 def get_compute_dtype(training_args) -> torch.dtype:
@@ -37,11 +38,9 @@ def train():
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
+        model_max_length=training_args.model_max_length,
         padding_side="right"
     )
-    if model_args.version == "plain":
-        tokenizer.pad_token = tokenizer.unk_token
-        conversation.set_default(model_args.version)
 
     causal_lm = get_causal_language_model(model_args, training_args, compute_dtype)
     causal_lm.init_vision_tokenizer(model_args, tokenizer)
@@ -51,6 +50,36 @@ def train():
     print('[DEBUG]', 1, tokenizer)
     print('[DEBUG]', 1, causal_lm.config)
     print('[DEBUG]', 1, '===================================================================')
+
+    image_loader = ImageLoader(
+        image_folder=data_args.image_folder,
+        image_processor=causal_lm.get_vision_tower().image_processor,  # type: ignore
+        image_mark=data_args.image_mark,
+        image_process_mode=data_args.image_process_mode)
+
+    lazy_dataset = LazyMMDialogDataset(
+        data_path=data_args.data_path,
+        image_loader=image_loader,
+        # FIXME Support other dataset
+        # roles=data_args.roles,
+        # conv_keys=data_args.conv_keys,
+        # data_keys=data_args.data_keys)
+    )
+    data_collator = DataCollator(
+        tokenizer=tokenizer,
+        version=model_args.version,
+        image_mark=data_args.image_mark
+    )
+
+    trainer = Trainer(
+        model=causal_lm,
+        tokenizer=tokenizer,
+        args=training_args,
+        train_dataset=lazy_dataset,
+        eval_dataset=None,
+        data_collator=data_collator
+    )
+    trainer.train()
     # FIXME Update causal_llm.config
     # FIXME use cache or not?
     # causal_lm.config.use_cache = False
