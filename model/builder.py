@@ -1,9 +1,8 @@
-
 import torch
 from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
-from .llava_llama import LlavaLlamaForCausalLM
+from .llava_llama import LlavaLlamaForCausalLM, LlavaConfig
 
 
 def get_bnb_args(training_args: TrainingArguments, compute_dtype: torch.dtype) -> dict:
@@ -29,62 +28,68 @@ def get_bnb_args(training_args: TrainingArguments, compute_dtype: torch.dtype) -
     )
 
 
-def get_causal_language_model(model_args: ModelArguments,
-                              training_args: TrainingArguments,
-                              compute_dtype: torch.dtype) -> LlavaLlamaForCausalLM:
+def get_compute_dtype(training_args) -> torch.dtype:
+    if training_args.fp16 and training_args.bf16:
+        raise ValueError("Only one of fp16 and bf16 can be set to True")
+    elif training_args.fp16:
+        return torch.float16
+    elif training_args.bf16:
+        return torch.bfloat16
+    else:
+        return torch.float32
+
+
+def get_causal_lm(model_args: ModelArguments,
+                  training_args: TrainingArguments
+                  ) -> LlavaLlamaForCausalLM:
+    '''Get causal language model.'''
+    # compute_dtype in [torch.float16, torch.bfloat16, torch.float32]
+    compute_dtype = get_compute_dtype(training_args)
 
     # Not support bits_and_bytes right now
     bnb_args = {} if True else get_bnb_args(training_args, compute_dtype)
-    # Load causal_llm
-    causal_lm = LlavaLlamaForCausalLM.from_pretrained(
+
+    # Load config
+    llava_config = LlavaConfig.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
+        cache_dir=model_args.cache_dir,
         attn_implementation=training_args.attn_impl,
         torch_dtype=compute_dtype,
+        # The LlavaConfig params
+        vision_tower=model_args.vision_tower,
+        mm_adapter=model_args.mm_adapter,
+        mm_vision_select_layer=model_args.mm_vision_select_layer,
+        mm_vision_select_feature=model_args.mm_vision_select_feature,
+        mm_patch_merge_type=model_args.mm_patch_merge_type,
+        pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path
+    )
+
+    # Load causal_llm
+    causal_lm = LlavaLlamaForCausalLM.from_pretrained(
+        config=llava_config,
+        cache_dir=model_args.cache_dir,
         **bnb_args
     )
 
-    # Load vision module
-    vision_tower = causal_lm.get_vision_tower()
-    mm_adapter = causal_lm.get_mm_adapter()
-    if vision_tower is None:
-        assert mm_adapter is None
-        causal_lm.get_model().init_vision_modules(model_args)
-        vision_tower = causal_lm.get_vision_tower()
-        mm_adapter = causal_lm.get_mm_adapter()
-    else:
-        assert mm_adapter is not None
-        # Load pretrained mm_adapter
-        assert model_args.pretrained_mm_adapter_path is not None
-        mm_adapter_state_dict = torch.load(
-            model_args.pretrained_mm_adapter_path,
-            map_location='cpu',
-            weights_only=True
-        )
-        assert isinstance(mm_adapter_state_dict, dict)
-        print('[DEBUG]', 1, '===============================================================')
-        print('[DEBUG]', 1, 'Loading pretrained mm_adapter from:')
-        print('[DEBUG]', 1, model_args.pretrained_mm_adapter_path)
-        print('[DEBUG]', 1, 'mm_adapter_state_dict')
-        print('[DEBUG]', 1, mm_adapter_state_dict.keys())
-        print('[DEBUG]', 1, '===============================================================')
-        # remove 'model.mm_adapter' prefix
-        no_prefix_state_dict = {}
-        for k, v in mm_adapter_state_dict.items():
-            no_prefix_state_dict[k.split('model.mm_adapter.')[1]] = v
-        mm_adapter.load_state_dict(no_prefix_state_dict)
+    print('[DEBUG]', 1, '===================================================================')
+    print('[DEBUG]', 1, causal_lm)
+    print('[DEBUG]', 1, causal_lm.config)
+    print('[DEBUG]', 1, '===================================================================')
 
-    # Set requires_grad
-    assert mm_adapter is not None and vision_tower is not None
+    backbone: torch.nn.Module = causal_lm.get_model()
+    vision_tower: torch.nn.Module = causal_lm.get_vision_tower()
+    mm_adapter: torch.nn.Module = causal_lm.get_mm_adapter()
     print('[DEBUG]', 1, '===================================================================')
     print('[DEBUG]', 1, 'default requires_grad:')
-    print('[DEBUG]', 1, 'backbone', next(causal_lm.get_model().parameters()).requires_grad)
+    print('[DEBUG]', 1, 'backbone', next(backbone.parameters()).requires_grad)
     print('[DEBUG]', 1, 'vision_tower', next(vision_tower.parameters()).requires_grad)
     print('[DEBUG]', 1, 'mm_adapter', next(mm_adapter.parameters()).requires_grad)
     print('[DEBUG]', 1, '===================================================================')
-    causal_lm.get_model().requires_grad_(model_args.tune_backbone)
+    backbone.requires_grad_(model_args.tune_backbone)
     vision_tower.requires_grad_(model_args.tune_vision_tower)
     mm_adapter.requires_grad_(model_args.tune_mm_adapter)
+
+    return causal_lm  # type: ignore
 
     # FIXME no quantization
     # if training_args.bits in [4, 8]:
@@ -141,5 +146,3 @@ def get_causal_language_model(model_args: ModelArguments,
     #     causal_lm.get_model().gradient_checkpointing = True
     #     causal_lm.gradient_checkpointing_enable()
     #     causal_lm.enable_input_require_grads()
-
-    return causal_lm

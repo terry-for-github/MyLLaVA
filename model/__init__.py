@@ -1,4 +1,4 @@
-from .builder import get_causal_language_model
+from .llava_llama import LlavaLlamaForCausalLM
+from .builder import get_causal_lm
 
-
-__all__ = ['get_causal_language_model']
+__all__ = ['LlavaLlamaForCausalLM', 'get_causal_lm']

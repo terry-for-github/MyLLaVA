@@ -7,31 +7,35 @@ from .vision_tower.builder import build_vision_tower
 from .mm_adapter.builder import build_mm_adapter
 
 
+class LlavaMetaConfig:
+    def __init__(
+        self,
+        vision_tower: str,
+        mm_adapter: str,
+        mm_vision_select_layer: int,
+        mm_vision_select_feature: str,
+        mm_patch_merge_type: str,
+        pretrained_mm_adapter_path: Optional[str] = None
+    ):
+        self.vision_tower = vision_tower
+        self.mm_adapter = mm_adapter
+        self.mm_vision_select_layer = mm_vision_select_layer
+        self.mm_vision_select_feature = mm_vision_select_feature
+        self.mm_patch_merge_type = mm_patch_merge_type
+        self.pretrained_mm_adapter_path = pretrained_mm_adapter_path
+        # TODO for mousi
+        # if len(model_args.vision_expert_list) > 0:
+        #     self.config.vision_expert_list = model_args.vision_expert_list
+        #     self.config.m_token_one_patch = model_args.m_token_one_patch
+
+
 class LlavaMetaModel:
     def __init__(self, config):
-        assert hasattr(config, 'vision_tower') == hasattr(config, 'mm_adapter')
+        assert hasattr(config, 'vision_tower') and hasattr(config, 'mm_adapter')
         print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'LlavaMetaModel init')
         print('[DEBUG]', 1, 'config', config)
         print('[DEBUG]', 1, '===============================================================')
-        self.config = config
-        # self.vision_tower = build_vision_tower(config)
-        # self.mm_adapter = build_mm_adapter(config)
-
-    def get_vision_tower(self) -> Optional[torch.nn.Module]:
-        return getattr(self, 'vision_tower', None)
-
-    def get_mm_adapter(self) -> Optional[torch.nn.Module]:
-        return getattr(self, 'mm_adapter', None)
-
-    def init_vision_modules(self, model_args):
-        assert not hasattr(self, 'vision_tower') and not hasattr(self, 'mm_adapter')
-        print('[DEBUG]', 1, '===============================================================')
-        print('[DEBUG]', 1, 'init_vision_modules')
-        print('[DEBUG]', 1, 'model_args', model_args)
-        print('[DEBUG]', 1, 'self', self)
-        print('[DEBUG]', 1, '===============================================================')
-
         # TODO what is this means
         # if model_args.mm_patch_merge_type == 'unpad':
         #     embed_std = 1 / torch.sqrt(
@@ -40,31 +44,35 @@ class LlavaMetaModel:
         #         torch.randn(self.config.hidden_size, dtype=self.dtype) \
         # * embed_std
         #     )
-
         self.vision_tower = build_vision_tower(
-            model_args.vision_tower,
-            model_args.mm_vision_select_layer,
-            model_args.mm_vision_select_feature
+            config.vision_tower,
+            config.mm_vision_select_layer,
+            config.mm_vision_select_feature,
+            config.cache_dir
         )
+        config.mm_hidden_size = self.vision_tower.hidden_size  # type: ignore
         self.mm_adapter = build_mm_adapter(
-            model_args.mm_adapter,
-            self.vision_tower.hidden_size,
-            self.config.hidden_size
+            config.mm_adapter,
+            config.mm_hidden_size,
+            config.hidden_size
         )
-        self._update_config(model_args)
 
-    def _update_config(self, model_args):
-        self.config.vision_tower = model_args.vision_tower
-        self.config.mm_adapter = model_args.mm_adapter
-
-        self.config.mm_hidden_size = self.vision_tower.hidden_size
-        self.config.mm_vision_select_layer = model_args.mm_vision_select_layer
-        self.config.mm_vision_select_feature = model_args.mm_vision_select_feature
-        self.config.mm_patch_merge_type = model_args.mm_patch_merge_type
-
-        if len(model_args.vision_expert_list) > 0:
-            self.config.vision_expert_list = model_args.vision_expert_list
-            self.config.m_token_one_patch = model_args.m_token_one_patch
+        # Load pretrained mm_adapter
+        if config.pretrained_mm_adapter_path is not None:
+            return
+        state_dict = torch.load(
+            config.pretrained_mm_adapter_path,
+            map_location='cpu',
+            weights_only=True
+        )
+        self.mm_adapter.load_state_dict(state_dict)
+        assert isinstance(state_dict, dict)
+        print('[DEBUG]', 1, '===============================================================')
+        print('[DEBUG]', 1, 'Loading pretrained mm_adapter from:')
+        print('[DEBUG]', 1, config.pretrained_mm_adapter_path)
+        print('[DEBUG]', 1, 'mm_adapter_state_dict')
+        print('[DEBUG]', 1, state_dict.keys())
+        print('[DEBUG]', 1, '===============================================================')
 
 
 class LlavaMetaForCausalLM(ABC):
@@ -74,23 +82,23 @@ class LlavaMetaForCausalLM(ABC):
         pass
 
     def get_vision_tower(self):
-        return self.get_model().get_vision_tower()
+        return self.get_model().vision_tower
 
     def get_mm_adapter(self):
-        return self.get_model().get_mm_adapter()
+        return self.get_model().mm_adapter
 
     def encode_images(self, images):
-        vision_tower = self.get_vision_tower()
-        mm_adapter = self.get_mm_adapter()
-        return mm_adapter(vision_tower(images))
+        image_features = self.get_vision_tower()(images)  # type: ignore
+        # image_features.requires_grad = True
+        return self.get_mm_adapter()(image_features)  # type:ignore
 
-    # def prepare_inputs_labels_for_multimodal(self):
-    #     pass
+    @abstractmethod
+    def prepare_inputs_for_forward(self, input_ids, attention_mask, labels, images):
+        pass
 
     def init_vision_tokenizer(self, model_args, tokenizer):
         if model_args.mm_use_im_patch_token:
             pass
-
         if model_args.mm_use_im_start_end:
             pass
         elif model_args.mm_use_im_patch_token:
