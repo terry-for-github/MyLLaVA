@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 import torch.nn as nn
 
@@ -10,13 +11,16 @@ feature_select_func_dict = {
 
 
 class CLIPVisionTower(nn.Module):
-    def __init__(self, model_name_or_path: str, select_layer: int, select_feature: str):
+    def __init__(self, model_name_or_path: str, select_layer: int, select_feature: str,
+                 cache_dir: Optional[str] = None):
         super().__init__()
         self.name = model_name_or_path
         self.select_layer_func = lambda x: x[select_layer]
         self.select_feature_func = feature_select_func_dict[select_feature]
-        self.image_processor = CLIPImageProcessor.from_pretrained(self.name)
-        self.image_encoder = CLIPVisionModel.from_pretrained(self.name)
+        self.image_processor = CLIPImageProcessor.from_pretrained(self.name, cache_dir)
+        self.image_encoder = CLIPVisionModel.from_pretrained(self.name, cache_dir=cache_dir)
+        # TODO compile the image_encoder to further speed up training
+        # self.image_encoder = torch.compile(image_encoder)
 
     def feature_select(self, image_forward_outs):
         image_features = self.select_layer_func(image_forward_outs.hidden_states)
@@ -64,44 +68,3 @@ class CLIPVisionTower(nn.Module):
     @property
     def num_patches(self):
         return self.num_patches_per_side ** 2
-
-
-if __name__ == '__main__':
-    # Test CLIPVisionTower
-    print('Test 1')
-    vision_tower = CLIPVisionTower('openai/clip-vit-large-patch14-336',
-                                   select_layer=-1,
-                                   select_feature='patch')
-    print(vision_tower)
-    print(vision_tower.config)
-    print(vision_tower.hidden_size)
-    print(vision_tower.num_patches_per_side)
-    print(vision_tower.num_patches)
-    images = torch.randn(2, 3, 336, 336)
-    image_features = vision_tower(images)
-    print(image_features.shape)
-    print(image_features.device)
-    print(image_features.dtype)
-    print(vision_tower.dummy_feature)
-    print(vision_tower.dummy_feature.device)
-    print(vision_tower.dummy_feature.dtype)
-    print('Pass test 1')
-    print('===========================================')
-    print('Test 2')
-    vision_tower = CLIPVisionTower('openai/clip-vit-large-patch14-336',
-                                   select_layer=-2,
-                                   select_feature='cls_patch')
-    print(vision_tower)
-    print(vision_tower.config)
-    print(vision_tower.hidden_size)
-    print(vision_tower.num_patches_per_side)
-    print(vision_tower.num_patches)
-    images = torch.randn(2, 3, 336, 336)
-    image_features = vision_tower(images)
-    print(image_features.shape)
-    print(image_features.device)
-    print(image_features.dtype)
-    print(vision_tower.dummy_feature)
-    print(vision_tower.dummy_feature.device)
-    print(vision_tower.dummy_feature.dtype)
-    print('Pass test 2')
