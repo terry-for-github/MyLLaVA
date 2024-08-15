@@ -58,13 +58,13 @@ class CLIPVisionTower(nn.Module):
         return self.image_encoder.config
 
     @property
-    def hidden_size(self):
+    def hidden_size(self) -> int:
         return self.config.hidden_size
 
     @property
-    def num_patches_per_side(self):
+    def num_patches_per_side(self) -> int:
         return self.config.image_size // self.config.patch_size
 
     @property
-    def num_patches(self):
+    def num_patches(self) -> int:
         return self.num_patches_per_side ** 2

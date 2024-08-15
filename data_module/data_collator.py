@@ -4,18 +4,24 @@ from typing import Dict, List
 import torch
 from transformers import PreTrainedTokenizerBase
 
-from .template import get_template
+from .template import template_dict
 from constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 
 class DataCollator:
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, version: str, image_mark: str):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, version: str, image_mark: str,
+                 vision_token_num: int, max_length: int):
         self.tokenizer = deepcopy(tokenizer)
         self.tokenizer.add_special_tokens({
             'additional_special_tokens': [image_mark]  # type: ignore
         })
-        self._image_token_id = self.tokenizer.additional_special_tokens_ids[0]
-        self.template = get_template(version)
+        self.image_token_id = self.tokenizer.additional_special_tokens_ids[0]
+        self.template = self._get_template(version)
+        self.vision_token_num = vision_token_num
+        self.max_length = max_length
+
+    def _get_template(self, version: str):
+        return template_dict[version].get_template()
 
     def _collate_dialog(self, list_dialog: List[Dict[str, str]]):
         dialog_batch: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
@@ -27,14 +33,38 @@ class DataCollator:
             return_dict=True,
             return_assistant_tokens_mask=True,
         )
-        image_token_pos = torch.where(dialog_batch['input_ids'] == self._image_token_id)
+        image_token_pos = torch.where(dialog_batch['input_ids'] == self.image_token_id)
         dialog_batch['input_ids'][image_token_pos] = IMAGE_TOKEN_INDEX
         labels = torch.tensor(dialog_batch.pop('assistant_masks'), dtype=torch.long)
         labels[labels == 0] = IGNORE_INDEX
         labels[labels == 1] = dialog_batch['input_ids'][labels == 1]
         dialog_batch['labels'] = labels
         dialog_batch['attention_mask'] = dialog_batch['attention_mask'].bool()
+        self._deal_long_dialog(dialog_batch)
         return dialog_batch
+
+    def _deal_long_dialog(self, dialog_batch: Dict[str, torch.Tensor]):
+        batch_size = dialog_batch['attention_mask'].size(dim=0)
+        trunc_len = 0
+        for i in range(batch_size):
+            has_image = torch.any(dialog_batch['input_ids'][i] == IMAGE_TOKEN_INDEX)
+            token_length = torch.sum(dialog_batch['attention_mask'][i]).item()
+            token_length += (self.vision_token_num - 1) if has_image else 0
+            if token_length <= self.max_length:
+                continue
+            trunc_len = max(trunc_len, token_length - self.max_length)
+            print(f'[WARN] {token_length} > max_length: {self.max_length} in dialog.'
+                  f'Set labels to {IGNORE_INDEX}.\n {dialog_batch["input_ids"][i]}')
+            dialog_batch['labels'][i] = IGNORE_INDEX
+        # We truncate the dialog here because it is more efficient to do it here
+        # than in the model forward function. (Maybe. I'm not sure.)
+        # (multi-core cpu here vs. gpu in `forward` function.)
+        # (At least save some gpu resources)
+        if trunc_len > 0:
+            print(f'[WARN] Truncate {trunc_len} tokens in dialog.')
+            dialog_batch['input_ids'] = dialog_batch['input_ids'][:, :-trunc_len]
+            dialog_batch['labels'] = dialog_batch['labels'][:, :-trunc_len]
+            dialog_batch['attention_mask'] = dialog_batch['attention_mask'][:, :-trunc_len]
 
     def _collate_image(self, list_image: List[torch.Tensor]):
         # In case of no image

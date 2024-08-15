@@ -134,26 +134,29 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 continue
             # Insert image features into the input_embeds
             # '+1' skips the IMAGE_TOKEN_INDEX, which is a placeholder.
+            image_pos = seq_idx[image_idx]
             input_embed_list.append(torch.cat([
-                input_embed[:seq_idx[image_idx]],
+                input_embed[:image_pos],
                 image_features[image_idx],
-                input_embed[seq_idx[image_idx]+1:]
+                input_embed[image_pos+1:]
             ]))
             attention_mask_list.append(torch.cat([
-                attn_mask[:seq_idx[image_idx]],
+                attn_mask[:image_pos],
                 torch.ones(image_token_num, dtype=torch.bool, device=device),
-                attn_mask[seq_idx[image_idx]+1:]
+                attn_mask[image_pos+1:]
             ]))
             label_list.append(torch.cat([
-                label[:seq_idx[image_idx]],
+                label[:image_pos],
                 torch.full((image_token_num,), IGNORE_INDEX, dtype=torch.long, device=device),
-                label[seq_idx[image_idx]+1:]
+                label[image_pos+1:]
             ]))
             image_idx += 1
             assert image_idx <= len(batch_idx)
         new_input_embeds = torch.stack(input_embed_list)
         new_attention_mask = torch.stack(attention_mask_list)
         new_labels = torch.stack(label_list)
+        # We've dealed with the long dialog in the data_collator already
+        # So we dont need to check the length of the input_embeds here
         return new_input_embeds, new_attention_mask, new_labels
 
     # def prepare_inputs_for_generation(self):

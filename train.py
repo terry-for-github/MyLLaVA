@@ -25,7 +25,6 @@ def main():
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
-        model_max_length=model_args.model_max_length,
         padding_side="right"
     )
 
@@ -39,7 +38,9 @@ def main():
     data_collator = DataCollator(
         tokenizer=tokenizer,
         version=model_args.version,
-        image_mark=data_args.image_mark
+        image_mark=data_args.image_mark,
+        vision_token_num=causal_lm.get_vision_tower().num_patches,
+        max_length=model_args.model_max_length,
     )
 
     trainer = LLaVATrainer(
