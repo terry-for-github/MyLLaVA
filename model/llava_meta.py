@@ -15,7 +15,6 @@ class LlavaMetaConfig:
         mm_vision_select_layer: int,
         mm_vision_select_feature: str,
         mm_patch_merge_type: str,
-        max_length: int,
         pretrained_mm_adapter_path: Optional[str] = None
     ):
         self.vision_tower = vision_tower
@@ -23,7 +22,6 @@ class LlavaMetaConfig:
         self.mm_vision_select_layer = mm_vision_select_layer
         self.mm_vision_select_feature = mm_vision_select_feature
         self.mm_patch_merge_type = mm_patch_merge_type
-        self.max_length = max_length
         self.pretrained_mm_adapter_path = pretrained_mm_adapter_path
         # TODO for mousi
         # if len(model_args.vision_expert_list) > 0:

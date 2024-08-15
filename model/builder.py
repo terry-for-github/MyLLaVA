@@ -61,7 +61,6 @@ def get_causal_lm(model_args: ModelArguments,
         mm_vision_select_layer=model_args.mm_vision_select_layer,
         mm_vision_select_feature=model_args.mm_vision_select_feature,
         mm_patch_merge_type=model_args.mm_patch_merge_type,
-        max_length=model_args.model_max_length,
         pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path
     )
 

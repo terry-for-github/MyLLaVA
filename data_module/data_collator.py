@@ -10,7 +10,7 @@ from constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 class DataCollator:
     def __init__(self, tokenizer: PreTrainedTokenizerBase, version: str, image_mark: str,
-                 vision_token_num: int, max_length: int):
+                 vision_token_num: int):
         self.tokenizer = deepcopy(tokenizer)
         self.tokenizer.add_special_tokens({
             'additional_special_tokens': [image_mark]  # type: ignore
@@ -18,7 +18,7 @@ class DataCollator:
         self.image_token_id = self.tokenizer.additional_special_tokens_ids[0]
         self.template = self._get_template(version)
         self.vision_token_num = vision_token_num
-        self.max_length = max_length
+        self.max_length = self.tokenizer.model_max_length
 
     def _get_template(self, version: str):
         return template_dict[version].get_template()
