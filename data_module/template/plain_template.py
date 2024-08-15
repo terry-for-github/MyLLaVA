@@ -7,8 +7,8 @@ from .base_template import BaseTemplate
 class PlainTemplate(BaseTemplate):
     def get_template(self):
         return (
-            "{{- bos_token + messages[0]['content']|trim + ' ' }}"
-            "{%- generation %}"
-            "{{- messages[1]['content']|trim + eos_token }}"
-            "{%- endgeneration %}"
+            "{{ bos_token + messages[0]['content']|trim + ' ' }}"
+            "{% generation %}"
+            "{{ messages[1]['content']|trim + eos_token }}"
+            "{% endgeneration %}"
         )

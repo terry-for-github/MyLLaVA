@@ -14,26 +14,21 @@ class VicunaTemplate(BaseTemplate):
 
     def get_template(self):
         return (
-            f"{{%- set loop_messages = messages %}}"
-            f"{{%- for message in loop_messages %}}"
-            f"{{%- if loop.index0 == 0 %}}"
-            f"{{{{- bos_token + '{self.system_prompt}' }}}}"
-            f"{{%- endif %}}"
-            f"{{%- if loop.index0 % 2 == 0 %}}"
-            f"{{{{- '{self.human_role}' + message['content']|trim }}}}"
-            f"{{%- else %}}"
-            f"{{{{- '{self.gpt_role}' }}}}"
-            f"{{%- generation %}}"
-            f"{{{{- message['content']|trim + eos_token }}}}"
-            f"{{%- endgeneration %}}"
-            f"{{%- endif %}}"
-            f"{{%- endfor %}}"
-            f"{{%- if add_generation_prompt %}}"
-            f"{{{{- '{self.gpt_role}' }}}}"
-            f"{{%- endif %}}"
+            f"{{% set loop_messages = messages %}}"
+            f"{{% for message in loop_messages %}}"
+            f"{{% if loop.index0 == 0 %}}"
+            f"{{{{ bos_token + '{self.system_prompt}' }}}}"
+            f"{{% endif %}}"
+            f"{{% if loop.index0 % 2 == 0 %}}"
+            f"{{{{ '{self.human_role}' + message['content']|trim }}}}"
+            f"{{% else %}}"
+            f"{{{{ '{self.gpt_role}' }}}}"
+            f"{{% generation %}}"
+            f"{{{{ message['content']|trim + eos_token }}}}"
+            f"{{% endgeneration %}}"
+            f"{{% endif %}}"
+            f"{{% endfor %}}"
+            f"{{% if add_generation_prompt %}}"
+            f"{{{{ '{self.gpt_role}' }}}}"
+            f"{{% endif %}}"
         )
-
-
-if __name__ == '__main__':
-    template = VicunaTemplate()
-    print(template.get_template())

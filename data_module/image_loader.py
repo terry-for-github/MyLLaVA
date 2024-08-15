@@ -18,12 +18,15 @@ class ImageLoader:
 
         assert image_process_mode in ['pad', 'resize', 'crop'], "Invalid image_process_mode"
         if image_process_mode == 'pad':
-            assert hasattr(image_processor, 'image_mean')
-            self.process_func = partial(self._expand_to_square,
-                                        background_color=image_processor.image_mean)
+            self.process_func = partial(
+                self._expand_to_square,
+                background_color=tuple(int(x*255) for x in image_processor.image_mean)
+            )
         elif image_process_mode == 'resize':
-            assert hasattr(image_processor, 'crop_size')
-            self.process_func = partial(self._resize, size=image_processor.crop_size)
+            self.process_func = partial(
+                self._resize,
+                size=image_processor.crop_size  # type: ignore
+            )
         elif image_process_mode == 'crop':
             self.process_func = lambda x: x
 
@@ -38,19 +41,16 @@ class ImageLoader:
         else:
             new_image = Image.new('RGB', (height, height), background_color)
             new_image.paste(pil_image, ((height - width) // 2, 0))
+        return new_image
 
     @staticmethod
     def _resize(pil_image, size):
         return pil_image.resize((size, size))
 
-    @property
-    def dummy_image(self):
-        return torch.zeros(3, self.image_size, self.image_size)
-
-    def __call__(self, image_file: Optional[str]) -> torch.Tensor:
+    def __call__(self, image_file: Optional[str]) -> Optional[torch.Tensor]:
         '''Load and preprocess image'''
         if image_file is None:
-            return self.dummy_image
+            return None
         image_path = os.path.join(self.image_folder, image_file)
         image = Image.open(image_path).convert('RGB')
         image = self.process_func(image)
