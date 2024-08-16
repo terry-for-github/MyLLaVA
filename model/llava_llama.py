@@ -10,16 +10,22 @@ from .llava_meta import LlavaMetaModel, LlavaMetaForCausalLM, LlavaMetaConfig
 from constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 
-class LlavaConfig(LlamaConfig, LlavaMetaConfig):
+# LlavaMetaConfig must be the first base class
+# Otherwise, the __init__ method of it wont be called
+class LlavaLlamaConfig(LlavaMetaConfig, LlamaConfig):
     model_type = "llava_llama"
 
 
-class LlavaLlamaModel(LlamaModel, LlavaMetaModel):
-    config_class = LlavaConfig
+# LlavaMetaModel must be the first base class
+# Otherwise, the __init__ method of it wont be called
+class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
+    config_class = LlavaLlamaConfig
 
 
-class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
-    config_class = LlavaConfig
+# LlavaMetaForCausalLM has no __init__ method
+# So it can also be the second base class
+class LlavaLlamaForCausalLM(LlavaMetaForCausalLM, LlamaForCausalLM):
+    config_class = LlavaLlamaConfig
 
     def __init__(self, config):
         super(LlamaForCausalLM, self).__init__(config)
@@ -172,5 +178,5 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         pass
 
 
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, LlavaLlamaForCausalLM)
+AutoConfig.register("llava_llama", LlavaLlamaConfig)
+AutoModelForCausalLM.register(LlavaLlamaConfig, LlavaLlamaForCausalLM)

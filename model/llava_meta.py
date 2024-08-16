@@ -10,13 +10,15 @@ from .mm_adapter.builder import build_mm_adapter
 class LlavaMetaConfig:
     def __init__(
         self,
-        vision_tower: str,
-        mm_adapter: str,
-        mm_vision_select_layer: int,
-        mm_vision_select_feature: str,
-        mm_patch_merge_type: str,
-        pretrained_mm_adapter_path: Optional[str] = None
+        vision_tower: Optional[str] = None,
+        mm_adapter: Optional[str] = None,
+        mm_vision_select_layer: int = -2,
+        mm_vision_select_feature: str = 'patch',
+        mm_patch_merge_type: str = 'flat',
+        pretrained_mm_adapter_path: Optional[str] = None,
+        **kwargs
     ):
+        super().__init__(**kwargs)
         self.vision_tower = vision_tower
         self.mm_adapter = mm_adapter
         self.mm_vision_select_layer = mm_vision_select_layer
@@ -31,11 +33,17 @@ class LlavaMetaConfig:
 
 class LlavaMetaModel:
     def __init__(self, config):
-        assert hasattr(config, 'vision_tower') and hasattr(config, 'mm_adapter')
+        super().__init__(config)  # type: ignore
         print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'LlavaMetaModel init')
         print('[DEBUG]', 1, 'config', config)
         print('[DEBUG]', 1, '===============================================================')
+        if hasattr(config, 'vision_tower') and config.vision_tower is not None:
+            self.init_vision_modules(config)
+
+    def init_vision_modules(self, config=None, **kwargs):
+        if not config:
+            config = self.config  # type: ignore
         # TODO what is this means
         # if model_args.mm_patch_merge_type == 'unpad':
         #     embed_std = 1 / torch.sqrt(
@@ -44,24 +52,30 @@ class LlavaMetaModel:
         #         torch.randn(self.config.hidden_size, dtype=self.dtype) \
         # * embed_std
         #     )
+        assert config.vision_tower is not None, 'Vision tower is not specified.'
+        assert config.mm_adapter is not None, 'Multimodal adapter is not specified.'
         self.vision_tower = build_vision_tower(
             config.vision_tower,
             config.mm_vision_select_layer,
             config.mm_vision_select_feature,
-            config.cache_dir
+            **kwargs
         )
-        config.mm_hidden_size = self.vision_tower.hidden_size  # type: ignore
+        config.mm_hidden_size = self.vision_tower.hidden_size
         self.mm_adapter = build_mm_adapter(
             config.mm_adapter,
             config.mm_hidden_size,
             config.hidden_size
         )
+        compute_dtype = kwargs.get('torch_dtype', None)
+        if compute_dtype:
+            self.mm_adapter.to(dtype=compute_dtype)
 
-        # Load pretrained mm_adapter
         if config.pretrained_mm_adapter_path is not None:
-            return
+            self._load_mm_adapter(config.pretrained_mm_adapter)
+
+    def _load_mm_adapter(self, state_dict_path: str):
         state_dict = torch.load(
-            config.pretrained_mm_adapter_path,
+            state_dict_path,
             map_location='cpu',
             weights_only=True
         )
@@ -69,7 +83,7 @@ class LlavaMetaModel:
         assert isinstance(state_dict, dict)
         print('[DEBUG]', 1, '===============================================================')
         print('[DEBUG]', 1, 'Loading pretrained mm_adapter from:')
-        print('[DEBUG]', 1, config.pretrained_mm_adapter_path)
+        print('[DEBUG]', 1, state_dict_path)
         print('[DEBUG]', 1, 'mm_adapter_state_dict')
         print('[DEBUG]', 1, state_dict.keys())
         print('[DEBUG]', 1, '===============================================================')
@@ -95,6 +109,9 @@ class LlavaMetaForCausalLM(ABC):
     @abstractmethod
     def prepare_inputs_for_forward(self, input_ids, attention_mask, labels, images):
         pass
+
+    def init_vision_modules(self, **kwargs):
+        self.get_model().init_vision_modules(**kwargs)
 
     def init_vision_tokenizer(self, model_args, tokenizer):
         if model_args.mm_use_im_patch_token:

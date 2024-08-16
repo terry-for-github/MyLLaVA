@@ -2,7 +2,7 @@ import torch
 from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
-from .llava_llama import LlavaLlamaForCausalLM, LlavaConfig
+from .llava_llama import LlavaLlamaForCausalLM, LlavaLlamaConfig
 
 
 def get_bnb_args(training_args: TrainingArguments, compute_dtype: torch.dtype) -> dict:
@@ -45,31 +45,44 @@ def get_causal_lm(model_args: ModelArguments,
     '''Get causal language model.'''
     # compute_dtype in [torch.float16, torch.bfloat16, torch.float32]
     compute_dtype = get_compute_dtype(training_args)
-
     # Not support bits_and_bytes right now
     bnb_args = {} if True else get_bnb_args(training_args, compute_dtype)
 
-    # Load config
-    llava_config = LlavaConfig.from_pretrained(
+    # Temporarily change model_type to llama to avoid the warning
+    LlavaLlamaConfig.model_type = 'llama'
+    llava_config: LlavaLlamaConfig = LlavaLlamaConfig.from_pretrained(
         model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir
+    )  # type: ignore
+    LlavaLlamaConfig.model_type = 'llava_llama'
+
+    # Load causal_llm
+    causal_lm: LlavaLlamaForCausalLM = LlavaLlamaForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
+        config=llava_config,
         cache_dir=model_args.cache_dir,
         attn_implementation=training_args.attn_impl,
         torch_dtype=compute_dtype,
-        # The LlavaConfig params
-        vision_tower=model_args.vision_tower,
-        mm_adapter=model_args.mm_adapter,
-        mm_vision_select_layer=model_args.mm_vision_select_layer,
-        mm_vision_select_feature=model_args.mm_vision_select_feature,
-        mm_patch_merge_type=model_args.mm_patch_merge_type,
-        pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path
-    )
-
-    # Load causal_llm
-    causal_lm = LlavaLlamaForCausalLM.from_pretrained(
-        config=llava_config,
-        cache_dir=model_args.cache_dir,
         **bnb_args
-    )
+    )  # type: ignore
+
+    # We are loading a model without vision tower. (LLM only)
+    # So we need to initialize vision modules by ourselves.
+    # This wont happened in evaluation if we save the config properly.
+    model_config: LlavaLlamaConfig = causal_lm.config  # type: ignore
+    if model_config.vision_tower is None:
+        model_config.vision_tower = model_args.vision_tower
+        model_config.mm_adapter = model_args.mm_adapter
+        model_config.mm_vision_select_layer = model_args.mm_vision_select_layer
+        model_config.mm_vision_select_feature = model_args.mm_vision_select_feature
+        model_config.mm_patch_merge_type = model_args.mm_patch_merge_type
+        model_config.pretrained_mm_adapter_path = model_args.pretrained_mm_adapter_path
+        model_config.vision_cache_dir = model_args.cache_dir
+        causal_lm.init_vision_modules(
+            torch_dtype=compute_dtype,
+            cache_dir=model_args.cache_dir,
+            **bnb_args
+        )
 
     print('[DEBUG]', 1, '===================================================================')
     print('[DEBUG]', 1, causal_lm)
