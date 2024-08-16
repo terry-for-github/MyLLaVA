@@ -48,7 +48,7 @@ class LLaVATrainer(Trainer):
         # restore the `use_cache` config
         self.model.config.use_cache = True
         # Save only the required state_dict
-        assert isinstance(state_dict, OrderedDict) and not state_dict
+        assert isinstance(state_dict, OrderedDict) and state_dict, type(state_dict)
         if output_dir is None:
             output_dir = self.args.output_dir
         # Stage 1: only tune mm_adapter
