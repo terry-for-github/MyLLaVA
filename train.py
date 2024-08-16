@@ -44,7 +44,6 @@ def main():
     )
 
     trainer = LLaVATrainer(
-        model_args=model_args,
         model=causal_lm,
         tokenizer=tokenizer,
         args=training_args,
