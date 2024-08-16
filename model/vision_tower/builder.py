@@ -1,11 +1,10 @@
-from typing import Optional
 from .clip_tower import CLIPVisionTower
 
 
 def build_vision_tower(vision_tower_type: str, select_layer: int, select_feature: str,
-                       cache_dir: Optional[str]):
+                       **kwargs):
     if "clip" in vision_tower_type and (vision_tower_type.startswith("openai") or
                                         vision_tower_type.startswith("laion")):
-        return CLIPVisionTower(vision_tower_type, select_layer, select_feature, cache_dir)
+        return CLIPVisionTower(vision_tower_type, select_layer, select_feature, **kwargs)
     else:
         raise NotImplementedError(f"Vision tower {vision_tower_type} is not implemented.")

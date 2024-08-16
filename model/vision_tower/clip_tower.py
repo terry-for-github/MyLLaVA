@@ -1,4 +1,3 @@
-from typing import Optional
 import torch
 import torch.nn as nn
 
@@ -12,13 +11,13 @@ feature_select_func_dict = {
 
 class CLIPVisionTower(nn.Module):
     def __init__(self, model_name_or_path: str, select_layer: int, select_feature: str,
-                 cache_dir: Optional[str] = None):
+                 **kwargs):
         super().__init__()
         self.name = model_name_or_path
         self.select_layer_func = lambda x: x[select_layer]
         self.select_feature_func = feature_select_func_dict[select_feature]
-        self.image_processor = CLIPImageProcessor.from_pretrained(self.name, cache_dir)
-        self.image_encoder = CLIPVisionModel.from_pretrained(self.name, cache_dir=cache_dir)
+        self.image_processor = CLIPImageProcessor.from_pretrained(self.name, **kwargs)
+        self.image_encoder = CLIPVisionModel.from_pretrained(self.name, **kwargs)
         # TODO compile the image_encoder to further speed up training
         # self.image_encoder = torch.compile(image_encoder)
 
