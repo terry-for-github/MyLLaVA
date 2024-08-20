@@ -27,6 +27,42 @@ def set_ignore_when_save(model: LlavaLlamaForCausalLM, model_args: ModelArgument
     LlavaLlamaForCausalLM._keys_to_ignore_on_save = ignore_keys  # type: ignore
 
 
+def set_logger():
+    import logging
+    from datetime import datetime
+    from transformers import logging as transformers_logging
+    from deepspeed import logger as deepspeed_logger
+
+    transformers_logging.set_verbosity_info()
+    deepspeed_logger.setLevel(logging.INFO)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = f"logs/log_{timestamp}"
+    os.makedirs(log_dir, exist_ok=True)
+
+    transformers_logger = logging.getLogger('transformers')
+    for handler in transformers_logger.handlers[:]:
+        transformers_logger.removeHandler(handler)
+    for handlder in deepspeed_logger.handlers[:]:
+        deepspeed_logger.removeHandler(handlder)
+    transformers_logger.propagate = False
+    deepspeed_logger.propagate = False
+
+    info_handler = logging.FileHandler(os.path.join(log_dir, 'info.log'))
+    info_handler.setLevel(logging.INFO)
+
+    warning_handler = logging.FileHandler(os.path.join(log_dir, 'warn.log'))
+    warning_handler.setLevel(logging.WARNING)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    info_handler.setFormatter(formatter)
+    warning_handler.setFormatter(formatter)
+
+    transformers_logger.addHandler(info_handler)
+    transformers_logger.addHandler(warning_handler)
+    deepspeed_logger.addHandler(info_handler)
+    deepspeed_logger.addHandler(warning_handler)
+
 
 def main():
     parser = transformers.HfArgumentParser(
@@ -88,6 +124,9 @@ if __name__ == '__main__':
     assert debug_level >= 0
 
     def custom_print(*args, **kwargs):
+        if len(args) == 0:
+            builtins_print(**kwargs)
+            return
         now_debug_level = 0
         if isinstance(args[0], str) and args[0].startswith('[DEBUG]'):
             assert isinstance(args[1], int) and 1 <= args[1] <= 9
@@ -95,6 +134,9 @@ if __name__ == '__main__':
         # hack accelerator.print
         if debug_level >= now_debug_level and is_local_main_process:
             builtins_print(*args, **kwargs)
+
+    if is_local_main_process:
+        set_logger()
 
     builtins.print = custom_print
 
