@@ -7,6 +7,10 @@ import transformers
 from llava_trainer import LLaVATrainer, SkipFinalSaveCallback
 from arguments import ModelArguments, DataArguments, TrainingArguments
 from model import get_causal_lm, LlavaLlamaForCausalLM
+from data_module import get_dataset_and_data_collator
+from constants import CACHE_DIR
+
+
 def set_ignore_when_save(model: LlavaLlamaForCausalLM, model_args: ModelArguments):
     ignore_keys = []
     for param_name in model.state_dict().keys():
@@ -47,16 +51,12 @@ def main():
     causal_lm = get_causal_lm(model_args, training_args)
     set_ignore_when_save(causal_lm, model_args)
 
-    train_dataset = get_dataset(
-        data_args=data_args,
-        image_processor=causal_lm.get_vision_tower().image_processor
-    )
-
-    data_collator = DataCollator(
+    train_dataset, data_collator = get_dataset_and_data_collator(
         tokenizer=tokenizer,
-        version=model_args.version,
-        image_mark=data_args.image_mark,
+        data_args=data_args,
+        vision_model_name=model_args.vision_tower,
         vision_token_num=causal_lm.get_vision_tower().num_patches,
+        version=model_args.version
     )
 
     trainer = LLaVATrainer(

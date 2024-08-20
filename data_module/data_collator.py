@@ -1,100 +1,141 @@
+import os
 from copy import deepcopy
-from typing import Dict, List
+from typing import Dict, Optional
 
 import torch
 from transformers import PreTrainedTokenizerBase
 
+from constants import IGNORE_INDEX
+
 from .template import template_dict
-from constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 
-class DataCollator:
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, version: str, image_mark: str,
-                 vision_token_num: int):
+class DataCollatorForSingleImageAtFirstDialog:
+    def __init__(self,
+                 tokenizer: PreTrainedTokenizerBase,
+                 version: str,
+                 image_mark: str):
+        # huggingface/tokenizers: The current process just got forked, after parallelism has
+        # already been used. Disabling parallelism to avoid deadlocks...
+        # To disable this warning, you can either:
+        #     - Avoid using `tokenizers` before the fork if possible
+        #     - Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = deepcopy(tokenizer)
+        self.image_mark = image_mark
+        self._init_from_tokenizer(version)
+
+    def _init_from_tokenizer(self, version):
         self.tokenizer.add_special_tokens({
-            'additional_special_tokens': [image_mark]  # type: ignore
+            'additional_special_tokens': [self.image_mark]  # type: ignore
         })
-        self.image_token_id = self.tokenizer.additional_special_tokens_ids[0]
-        self.template = self._get_template(version)
-        self.vision_token_num = vision_token_num
-        self.max_length = self.tokenizer.model_max_length
+        template = template_dict[version].get_template()
+        if template:
+            self.tokenizer.chat_template = template
 
-    def _get_template(self, version: str):
-        return template_dict[version].get_template()
+        assert self.tokenizer.padding_side in ['right', 'left']
+        self.pad_func = ((lambda x, y: torch.cat([x, y]))
+                         if self.tokenizer.padding_side == 'right'
+                         else (lambda x, y: torch.cat([y, x])))
+        assert self.tokenizer.pad_token_id is not None
+        self.pad_token_id = self.tokenizer.pad_token_id
+        self.image_mark_id = self.tokenizer.additional_special_tokens_ids[0]
 
-    def _collate_dialog(self, list_dialog: List[Dict[str, str]]):
-        dialog_batch: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
-            list_dialog,
-            chat_template=self.template,
-            tokenize=True,
-            padding='longest',  # type: ignore
-            return_tensors='pt',
-            return_dict=True,
-            return_assistant_tokens_mask=True,
-        )
-        image_token_pos = torch.where(dialog_batch['input_ids'] == self.image_token_id)
-        dialog_batch['input_ids'][image_token_pos] = IMAGE_TOKEN_INDEX
-        labels = torch.tensor(dialog_batch.pop('assistant_masks'), dtype=torch.long)
-        labels[labels == 0] = IGNORE_INDEX
-        labels[labels == 1] = dialog_batch['input_ids'][labels == 1]
-        dialog_batch['labels'] = labels
-        dialog_batch['attention_mask'] = dialog_batch['attention_mask'].bool()
-        self._deal_long_dialog(dialog_batch)
-        return dialog_batch
-
-    def _deal_long_dialog(self, dialog_batch: Dict[str, torch.Tensor]):
-        batch_size = dialog_batch['attention_mask'].size(dim=0)
-        trunc_len = 0
-        for i in range(batch_size):
-            has_image = torch.any(dialog_batch['input_ids'][i] == IMAGE_TOKEN_INDEX)
-            token_length = torch.sum(dialog_batch['attention_mask'][i]).item()
-            token_length += (self.vision_token_num - 1) if has_image else 0
-            if token_length <= self.max_length:
-                continue
-            trunc_len = max(trunc_len, token_length - self.max_length)
-            print(f'[WARN] {token_length} > max_length: {self.max_length} in dialog.'
-                  f'Set labels to {IGNORE_INDEX}.\n {dialog_batch["input_ids"][i]}')
-            dialog_batch['labels'][i] = IGNORE_INDEX
-        # We truncate the dialog here because it is more efficient to do it here
-        # than in the model forward function. (Maybe. I'm not sure.)
-        # (multi-core cpu here vs. gpu in `forward` function.)
-        # (At least save some gpu resources)
-        if trunc_len > 0:
-            print(f'[WARN] Truncate {trunc_len} tokens in dialog.')
-            dialog_batch['input_ids'] = dialog_batch['input_ids'][:, :-trunc_len]
-            dialog_batch['labels'] = dialog_batch['labels'][:, :-trunc_len]
-            dialog_batch['attention_mask'] = dialog_batch['attention_mask'][:, :-trunc_len]
-
-    def _collate_image(self, list_image: List[torch.Tensor]):
-        # In case of no image
-        if len(list_image) == 0:
-            return {'images': None}
-        return {'images': torch.stack(list_image)}
-
-    def __call__(self, list_data_dict: List[Dict[str, str]]):
+    def __call__(self, list_data_dict: list) -> Dict[str, Optional[torch.Tensor]]:
         '''
         Input: list_data_dict = [{
                 'image': image,
                 'dialog': [{'role': role, 'content': content}, ...]
             }]
         Output: {'input_ids': input_ids, 'labels': labels,
+                 'vision_token_pos': vision_token_pos,
                  'attention_mask': attention_mask, 'images': images}
         '''
-        list_image, list_dialog = [], []
-        for data_dict in list_data_dict:
-            # We dont wanna encode some zero images, this is a waste of calculation resource.
-            # So we only append the image if it is not None,
-            # this makes the length of list_image differ from list_dialog.
-            # However, we can still use the image_mark to check which dialog has image later.
-            # So in summary:
-            # We dont append a empty image if it is None, this save a little bit of
-            # calculation resource, otherwise it will always encode some empty images which is
-            # meaningless for us.
-            if data_dict['image'] is not None:
-                list_image.append(data_dict['image'])
-            list_dialog.append(data_dict['dialog'])
-        batch = {}
-        batch.update(self._collate_dialog(list_dialog))
-        batch.update(self._collate_image(list_image))
-        return batch
+        list_image = [data_dict['image'] for data_dict in list_data_dict]
+        list_dialog = [data_dict['dialog'] for data_dict in list_data_dict]
+        input_dict: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
+            list_dialog,
+            tokenize=True,
+            truncation=True,
+            padding='longest',  # type: ignore
+            return_tensors='pt',
+            return_dict=True,
+            return_assistant_tokens_mask=True,
+        )
+        input_dict['assistant_masks'] = torch.tensor(input_dict['assistant_masks'])
+
+        self._drop_max_length_sample(input_dict, list_image)
+
+        labels = input_dict.pop('assistant_masks')
+        labels[labels == 0] = IGNORE_INDEX
+        labels[labels == 1] = input_dict['input_ids'][labels == 1]
+        input_dict['labels'] = labels
+        vision_token_pos = input_dict['input_ids'] == self.image_mark_id
+        input_dict['input_ids'][vision_token_pos] = self.pad_token_id
+        input_dict['vision_token_pos'] = vision_token_pos
+
+        batch_data_dict: Dict[str, Optional[torch.Tensor]] = input_dict  # type: ignore
+        not_none_list_image = [image for image in list_image if image is not None]
+        if len(not_none_list_image) == 0:
+            batch_data_dict['images'] = None
+            batch_data_dict['vision_token_pos'] = None
+        else:
+            batch_data_dict['images'] = torch.stack([
+                image for image in list_image if image is not None
+            ])
+        # verify group_by_length
+        # print([torch.sum(mask == 1).item() for mask in input_dict['attention_mask']])
+        return batch_data_dict
+
+    def _drop_max_length_sample(self, input_dict, list_image):
+        '''
+        Drop the sample which length reach the model_max_length.
+        They are very likely samples that were truncated after exceeding model_max_length.
+        '''
+        batch_size = len(list_image)
+        drop_num = 0
+        for i in range(batch_size):
+            length = torch.sum(input_dict['attention_mask'][i] == 1).item()
+            if length < self.tokenizer.model_max_length:
+                continue
+            drop_num += 1
+            input_ids = input_dict['input_ids'][i]
+            attention_mask = input_dict['attention_mask'][i]
+            assistent_mask = input_dict['assistant_masks'][i]
+
+            input_ids[input_ids == self.image_mark_id] = self.pad_token_id
+            attention_mask[attention_mask == 1] = 0
+            assistent_mask[assistent_mask == 1] = 0
+            list_image[i] = None
+        if drop_num > 0:
+            print(f'Dropped {drop_num} samples exceed max_length')
+
+    def _deal_with_overflow(self, input_dict, list_image):
+        '''deprecated'''
+        mapping_list = input_dict.pop('overflow_to_sample_mapping').tolist()
+        if len(mapping_list) == len(list_image):
+            return
+        idx = 0
+        last_idx = -1
+        num_overflow = 0
+        total_overflow = len(mapping_list) - len(list_image)
+        while idx < len(mapping_list):
+            if mapping_list[idx] != last_idx:
+                last_idx = mapping_list[idx]
+                idx += 1
+            num_overflow += 1
+            del list_image[idx]
+            for v in input_dict.values():
+                # delete the idx-th sample
+                v = torch.cat([v[:idx], v[idx+1:]])
+
+            input_ids = input_dict['input_ids'][idx - 1]
+            attention_mask = input_dict['attention_mask'][idx - 1]
+            assistent_mask = input_dict['assistant_masks'][idx - 1]
+
+            input_ids[input_ids == self.image_mark_id] = self.pad_token_id
+            attention_mask[attention_mask == 1] = 0
+            assistent_mask[assistent_mask == 1] = 0
+            list_image[idx - 1] = None
+        assert num_overflow == total_overflow
+        print(f'{total_overflow} samples exceed max_length. Filtered')
