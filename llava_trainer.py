@@ -1,10 +1,32 @@
-import os
-from collections import OrderedDict
-from typing import List
+from typing import List, Optional
+import random
 
-import torch
-from transformers import Trainer
+from torch.utils.data import Sampler
+from transformers import (
+    Trainer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments
+)
+from transformers.trainer_utils import has_length
 from transformers.trainer import PREFIX_CHECKPOINT_DIR
+
+
+class SkipFinalSaveCallback(TrainerCallback):
+    '''Override the default behavior to save the model at the end of training'''
+    def on_step_end(self, args: TrainingArguments, state: TrainerState,
+                    control: TrainerControl, **kwargs):
+        if state.global_step >= state.max_steps:
+            control.should_save = False
+        return control
+
+    def on_epoch_end(self, args: TrainingArguments, state: TrainerState,
+                     control: TrainerControl, **kwargs):
+        if state.global_step >= state.max_steps:
+            control.should_save = False
+        return control
+
+    def on_train_end(self, args: TrainingArguments, state: TrainerState,
+                     control: TrainerControl, **kwargs):
+        control.should_save = True
+        return control
 
 
 class LengthGroupedRandomSampler(Sampler):
@@ -54,6 +76,16 @@ class LengthGroupedRandomSampler(Sampler):
 
 
 class LLaVATrainer(Trainer):
+
+    def train(self, *args, **kwargs):
+        change_back = False
+        if getattr(self.model.config, 'use_cache', False):
+            self.model.config.use_cache = False
+            change_back = True
+        super().train(*args, **kwargs)
+        if change_back:
+            self.model.config.use_cache = True
+
     # Overload the Trainer method
     def _get_train_sampler(self) -> Optional[Sampler]:
         if self.train_dataset is None or not has_length(self.train_dataset):
@@ -67,9 +99,20 @@ class LLaVATrainer(Trainer):
             gradient_acc_steps=self.args.gradient_accumulation_steps
         )
 
-    def _save_rng_state(self, output_dir):
-        if not self.control.should_training_stop:
-            super()._save_rng_state(output_dir)
+    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch,
+                                 ignore_keys_for_eval):
+        super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch,
+                                         ignore_keys_for_eval)
+        # We use the SkipFinalSaveCallback to skip the final save.
+        # We need to delete all the checkpoints when training ends.
+        # But the delete function is inside the _rotate_checkpoints function.
+        # So we need to call the _rotate_checkpoints function here.
+        if self.control.should_training_stop:
+            run_dir = self._get_output_dir(trial=trial)
+            # save_total_limit will be set to 0 inside the rotate function.
+            tmp_save_total_limit = self.args.save_total_limit
+            self._rotate_checkpoints(output_dir=run_dir)
+            self.args.save_total_limit = tmp_save_total_limit
 
     # Hack the source code to delete all the checkpoints when training ends.
     # This function will be called inside the _rotate_checkpoints function.
@@ -81,47 +124,3 @@ class LLaVATrainer(Trainer):
         if self.control.should_training_stop:
             self.args.save_total_limit = 0
         return super()._sorted_checkpoints(output_dir, checkpoint_prefix, use_mtime)
-
-    def _rotate_checkpoints(self, use_mtime=False, output_dir=None) -> None:
-        tmp_save_total_limit = self.args.save_total_limit
-        super()._rotate_checkpoints(use_mtime, output_dir)
-        self.args.save_total_limit = tmp_save_total_limit
-
-    def _save(self, output_dir, state_dict):
-        if not self.control.should_training_stop:
-            super()._save(output_dir, state_dict)
-            return
-        # restore the `use_cache` config
-        self.model.config.use_cache = True
-        # Save only the required state_dict
-        assert isinstance(state_dict, OrderedDict) and state_dict, type(state_dict)
-        if output_dir is None:
-            output_dir = self.args.output_dir
-        # Stage 1: only tune mm_adapter
-        if (
-            not self.tune_backbone and
-            not self.tune_vision_tower and
-            self.tune_mm_adapter
-        ):
-            mm_adapter_state_dict = {}
-            # remove 'model.mm_adapter' prefix
-            for key in list(state_dict.keys()):
-                if 'mm_adapter' not in key:
-                    continue
-                no_prefix_key = key.split('model.mm_adapter.')[1]
-                mm_adapter_state_dict[no_prefix_key] = state_dict.pop(key)
-            # Save the config file only for recording.
-            self.model.config.save_pretrained(output_dir)
-            torch.save(mm_adapter_state_dict, os.path.join(output_dir, 'mm_adapter.bin'))
-        # Stage 2: tune mm_adapter and backbone
-        elif (
-            self.tune_backbone and
-            not self.tune_vision_tower and
-            self.tune_mm_adapter
-        ):
-            for key in list(state_dict.keys()):
-                if 'vision_tower' in key:
-                    state_dict.pop(key)
-            super()._save(output_dir, state_dict)
-        else:
-            raise NotImplementedError('Only support stage 1 and 2.')

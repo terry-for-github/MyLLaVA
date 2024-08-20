@@ -1,12 +1,27 @@
 import os
+import glob
 import builtins
 
 import transformers
 
-from llava_trainer import LLaVATrainer
+from llava_trainer import LLaVATrainer, SkipFinalSaveCallback
 from arguments import ModelArguments, DataArguments, TrainingArguments
-from model import get_causal_lm
-from data_module import get_dataset, DataCollator
+from model import get_causal_lm, LlavaLlamaForCausalLM
+def set_ignore_when_save(model: LlavaLlamaForCausalLM, model_args: ModelArguments):
+    ignore_keys = []
+    for param_name in model.state_dict().keys():
+        # vision_tower params
+        if 'vision_tower' in param_name:
+            if not model_args.tune_vision_tower:
+                ignore_keys.append(param_name)
+        elif 'mm_adapter' in param_name:
+            if not model_args.tune_mm_adapter:
+                ignore_keys.append(param_name)
+        elif not model_args.tune_backbone:
+            ignore_keys.append(param_name)
+    # Use the class attribute to ignore these keys
+    LlavaLlamaForCausalLM._keys_to_ignore_on_save = ignore_keys  # type: ignore
+
 
 
 def main():
@@ -30,6 +45,7 @@ def main():
     )
 
     causal_lm = get_causal_lm(model_args, training_args)
+    set_ignore_when_save(causal_lm, model_args)
 
     train_dataset = get_dataset(
         data_args=data_args,
@@ -49,14 +65,13 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         data_collator=data_collator,
-        # LLaVA Trainer parameters
-        tune_backbone=model_args.tune_backbone,
-        tune_vision_tower=model_args.tune_vision_tower,
-        tune_mm_adapter=model_args.tune_mm_adapter,
+        callbacks=[SkipFinalSaveCallback()]
     )
 
-    trainer.train()
+    has_checkpoints = bool(glob.glob(os.path.join(training_args.output_dir, 'checkpoint-*')))
+    trainer.train(resume_from_checkpoint=has_checkpoints)
 
+    trainer.save_model(training_args.output_dir)
     # FIXME Update causal_llm.config
     # causal_lm.config.image_aspect_ratio = data_args.image_aspect_ratio
 
