@@ -2,6 +2,8 @@ import torch
 from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
+from constants import CACHE_DIR
+
 from .llava_llama import LlavaLlamaForCausalLM, LlavaLlamaConfig
 
 
@@ -52,47 +54,43 @@ def get_causal_lm(model_args: ModelArguments,
     LlavaLlamaConfig.model_type = 'llama'
     llava_config: LlavaLlamaConfig = LlavaLlamaConfig.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir
+        cache_dir=CACHE_DIR,
     )  # type: ignore
     LlavaLlamaConfig.model_type = 'llava_llama'
+
+    # We are loading a model without vision tower. (LLM only)
+    # So we need to initialize vision modules by ourselves.
+    # This wont happened in evaluation if we save the config properly.
+    if llava_config.vision_tower is None:
+        llava_config.vision_tower = model_args.vision_tower
+        llava_config.mm_adapter = model_args.mm_adapter
+        llava_config.mm_vision_select_layer = model_args.mm_vision_select_layer
+        llava_config.mm_vision_select_feature = model_args.mm_vision_select_feature
+        llava_config.mm_patch_merge_type = model_args.mm_patch_merge_type
 
     # Load causal_llm
     causal_lm: LlavaLlamaForCausalLM = LlavaLlamaForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=llava_config,
-        cache_dir=model_args.cache_dir,
+        cache_dir=CACHE_DIR,
         attn_implementation=training_args.attn_impl,
         torch_dtype=compute_dtype,
         **bnb_args
     )  # type: ignore
 
-    # We are loading a model without vision tower. (LLM only)
-    # So we need to initialize vision modules by ourselves.
-    # This wont happened in evaluation if we save the config properly.
-    model_config: LlavaLlamaConfig = causal_lm.config  # type: ignore
-    if model_config.vision_tower is None:
-        model_config.vision_tower = model_args.vision_tower
-        model_config.mm_adapter = model_args.mm_adapter
-        model_config.mm_vision_select_layer = model_args.mm_vision_select_layer
-        model_config.mm_vision_select_feature = model_args.mm_vision_select_feature
-        model_config.mm_patch_merge_type = model_args.mm_patch_merge_type
-        model_config.pretrained_mm_adapter_path = model_args.pretrained_mm_adapter_path
-        model_config.vision_cache_dir = model_args.cache_dir
-        causal_lm.init_vision_modules(
-            torch_dtype=compute_dtype,
-            cache_dir=model_args.cache_dir,
-            **bnb_args
-        )
-
-    print('[DEBUG]', 1, '===================================================================')
-    print('[DEBUG]', 1, causal_lm)
-    print('[DEBUG]', 1, causal_lm.config)
-    print('[DEBUG]', 1, '===================================================================')
+    causal_lm.init_pretrained_model(
+        pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path,
+        attn_implementation=training_args.attn_impl,
+        torch_dtype=compute_dtype,
+        **bnb_args
+    )
 
     backbone: torch.nn.Module = causal_lm.get_model()
     vision_tower: torch.nn.Module = causal_lm.get_vision_tower()
     mm_adapter: torch.nn.Module = causal_lm.get_mm_adapter()
     print('[DEBUG]', 1, '===================================================================')
+    print('[DEBUG]', 1, causal_lm)
+    print('[DEBUG]', 1, causal_lm.config)
     print('[DEBUG]', 1, 'default requires_grad and dtype:')
     backbone_param = next(backbone.parameters())
     tower_param = next(vision_tower.parameters())
@@ -102,6 +100,8 @@ def get_causal_lm(model_args: ModelArguments,
     print('[DEBUG]', 1, 'mm_adapter', mm_adapter_param.requires_grad, mm_adapter_param.dtype)
     print('[DEBUG]', 1, '===================================================================')
     backbone.requires_grad_(model_args.tune_backbone)
+    # FIXME Remember the lm_head, might tune backbone but not lm_head in the future?
+    causal_lm.lm_head.requires_grad_(model_args.tune_backbone)
     vision_tower.requires_grad_(model_args.tune_vision_tower)
     mm_adapter.requires_grad_(model_args.tune_mm_adapter)
 

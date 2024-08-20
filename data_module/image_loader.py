@@ -4,28 +4,31 @@ from functools import partial
 
 from PIL import Image
 import torch
-from transformers import BaseImageProcessor
+from transformers import AutoImageProcessor
+
+from constants import CACHE_DIR
 
 
 class ImageLoader:
     def __init__(self, image_folder: str,
-                 image_processor: BaseImageProcessor,
+                 vision_model_name: str,
                  image_mark: str,
                  image_process_mode: str):
         self.image_folder = image_folder
-        self.image_processor = image_processor
+        self.image_processor = AutoImageProcessor.from_pretrained(vision_model_name,
+                                                                  cache_dir=CACHE_DIR)
         self.image_mark = image_mark
 
         assert image_process_mode in ['pad', 'resize', 'crop'], "Invalid image_process_mode"
         if image_process_mode == 'pad':
             self.process_func = partial(
                 self._expand_to_square,
-                background_color=tuple(int(x*255) for x in image_processor.image_mean)
+                background_color=tuple(int(x*255) for x in self.image_processor.image_mean)
             )
         elif image_process_mode == 'resize':
             self.process_func = partial(
                 self._resize,
-                size=image_processor.crop_size  # type: ignore
+                size=self.image_processor.crop_size
             )
         elif image_process_mode == 'crop':
             self.process_func = lambda x: x
