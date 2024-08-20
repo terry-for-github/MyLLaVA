@@ -64,6 +64,21 @@ def set_logger():
     deepspeed_logger.addHandler(warning_handler)
 
 
+def get_tokenizer(model_args: ModelArguments):
+    # You need to have sentencepiece installed to convert a slow tokenizer to a fast one.
+    # --> pip install sentencepiece protobuf
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=CACHE_DIR,
+        model_max_length=model_args.model_max_length,
+        padding_side="right"
+    )
+    if 'llama-3' in model_args.model_name_or_path.lower():
+        # <|finetune_right_pad_id|> or <|reserved_special_token_2|>
+        tokenizer.pad_token_id = 128004  # type: ignore
+    return tokenizer
+
+
 def main():
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments)  # type: ignore
@@ -75,14 +90,7 @@ def main():
     print('[DEBUG]', 1, training_args)
     print('[DEBUG]', 1, '===================================================================')
 
-    # You need to have sentencepiece installed to convert a slow tokenizer to a fast one.
-    # --> pip install sentencepiece protobuf
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir,
-        model_max_length=model_args.model_max_length,
-        padding_side="right"
-    )
+    tokenizer = get_tokenizer(model_args)
 
     causal_lm = get_causal_lm(model_args, training_args)
     set_ignore_when_save(causal_lm, model_args)
