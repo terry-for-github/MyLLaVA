@@ -9,6 +9,14 @@ class DataArguments:
         "help": "Path to image folder"
     })
 
+    check_dataset: bool = field(default=False, metadata={
+        "help": "Check the dataset before training"
+    })
+
+    is_plain_dataset: bool = field(default=False, metadata={
+        "help": "Whether or not the dataset is plain (Each sample has only two messages)"
+    })
+
     image_process_mode: Literal['pad', 'resize', 'crop'] = field(default='pad', metadata={
         "help": "Mode to process image\n"
                 "- pad: pad the image to square\n"

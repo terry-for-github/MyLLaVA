@@ -39,9 +39,6 @@ class TrainingArguments(transformers.TrainingArguments):
         "help": "Learning rate for multimodal adapter"
     })
 
-    # FIXME
-    group_by_modality_length: bool = field(default=False)
-
     def __post_init__(self):
         super().__post_init__()
         assert self.lora_bias in ["none", "all", "lora_only"], \

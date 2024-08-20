@@ -24,9 +24,6 @@ class ModelArguments:
     vision_tower: str = field(metadata={"help": "Name of the vision tower"})
     mm_adapter: str = field(metadata={"help": "Name of the multimodal adapter"})
 
-    cache_dir: Optional[str] = field(default=None, metadata={
-        "help": "Path to cache directory"
-    })
     pretrained_mm_adapter_path: Optional[str] = field(default=None, metadata={
         "help": "Path to pretrained multimodal adapter"
     })
