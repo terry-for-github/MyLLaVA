@@ -20,27 +20,36 @@ class LazyMMDialogDataset(Dataset):
         super().__init__()
         self.json_path = json_path
         self.image_loader = image_loader
-        self.human_key = human_key
-        self.gpt_key = gpt_key
-        self.image_mark = image_loader.image_mark
 
-        print('Loading json data from:', json_path)
-        raw_list_data_dict = json.load(open(json_path, "r"))
-        self.num_data = len(raw_list_data_dict)
-        print('Load json file complete:', self.num_data, 'data')
+    def __len__(self) -> int:
+        return len(self.list_data_dict)
 
-        print(f'Keep only "{dialog_key}" and "{image_key}" columns')
+    @property
+    def lengths(self) -> List[int]:
+        return self._lengths
+
         # If no 'image' column, set it to None
         self.list_data_dict = [{
             'dialog': [{'role': message[role_key], 'content': message[content_key]}
                        for message in data_dict[dialog_key]],
             'image': data_dict[image_key] if image_key in data_dict else None
-        } for data_dict in raw_list_data_dict]
-        print('Filtering columns complete.')
 
-    def check_dataset(self, is_plain: bool = False):
-        '''
-        Check the dataset. Called by pytest.
+    def _cal_lengths(self):
+        print('Calculate the lengths of all dialogs.')
+        self._lengths = []
+        pattern = r"[\n\t\r!\"#$%&'()*+,\-./:;=?@[\]^_`{}~]"
+        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+            dialog = data_dict['dialog']
+            length = 0
+            for message in dialog:
+                num_image = message['content'].count(self.image_mark)
+                # use number of words to estimate the length
+                length += len(message['content'].split())
+                length += len(re.findall(pattern, message['content']))
+                length += num_image * (self.vision_token_num - 1)
+            self._lengths.append(length)
+        print('Calculation Completed.')
+        return self
         You should run this at least once to make sure the dataset is correct.
         This confirms that:
         1.  The image mark should only exist in the first message.
