@@ -1,3 +1,4 @@
 # Llama define this
 IGNORE_INDEX = -100
-IMAGE_TOKEN_INDEX = -200
+
+CACHE_DIR = None
