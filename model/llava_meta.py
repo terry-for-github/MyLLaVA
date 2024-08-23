@@ -20,12 +20,15 @@ class LlavaMetaConfig:
         super().__init__(**kwargs)
         self.vision_tower = vision_tower
         self.mm_adapter = mm_adapter
+        self.mm_hidden_size = None
         self.mm_vision_select_layer = mm_vision_select_layer
         self.mm_patch_merge_type = mm_patch_merge_type
-        # TODO for mousi
-        # if len(model_args.vision_expert_list) > 0:
-        #     self.config.vision_expert_list = model_args.vision_expert_list
-        #     self.config.m_token_one_patch = model_args.m_token_one_patch
+
+    def update(self, model_args):
+        self.vision_tower = model_args.vision_tower
+        self.mm_adapter = model_args.mm_adapter
+        self.mm_vision_select_layer = model_args.mm_vision_select_layer
+        self.mm_patch_merge_type = model_args.mm_patch_merge_type
 
 
 class LlavaMetaModel:

@@ -65,10 +65,7 @@ def get_causal_lm(model_args: ModelArguments,
     # So we need to initialize vision modules by ourselves.
     # This wont happened in evaluation if we save the config properly.
     if llava_config.vision_tower is None:
-        llava_config.vision_tower = model_args.vision_tower
-        llava_config.mm_adapter = model_args.mm_adapter
-        llava_config.mm_vision_select_layer = model_args.mm_vision_select_layer
-        llava_config.mm_patch_merge_type = model_args.mm_patch_merge_type
+        llava_config.update(model_args)
 
     # Load causal_llm
     causal_lm: LlavaLlamaForCausalLM = LlavaLlamaForCausalLM.from_pretrained(
