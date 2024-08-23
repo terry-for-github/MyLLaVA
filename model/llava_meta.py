@@ -81,6 +81,8 @@ class LlavaMetaModel:
         elif file_name.endswith('.safetensors'):
             from safetensors.torch import load_file
             state_dict = load_file(state_dict_path)
+        else:
+            raise ValueError(f'state dict file name illegel {file_name}.')
         assert isinstance(state_dict, dict)
         no_prefix_state_dict = {}
         for name, param in state_dict.items():
