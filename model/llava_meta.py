@@ -86,7 +86,7 @@ class LlavaMetaModel:
         for name, param in state_dict.items():
             if 'mm_adapter' not in name:
                 continue
-            no_prefix_name = name.split('model.mm_adapter.', 1)[1]
+            no_prefix_name = name.split('model.mm_adapter.')[1]
             no_prefix_state_dict[no_prefix_name] = param
 
         from transformers.integrations import is_deepspeed_zero3_enabled
