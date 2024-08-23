@@ -1,12 +1,12 @@
 import os
-from typing import Optional
+from typing import List, Optional
 from functools import partial
 
 from PIL import Image
 import torch
-from transformers import AutoImageProcessor
+from transformers import AutoImageProcessor, LayoutLMv3ImageProcessor
 
-from constants import CACHE_DIR
+from constants import CACHE_DIR, IMAGE_MEAN, IMAGE_SIZE
 
 
 class ImageLoader:
@@ -18,18 +18,20 @@ class ImageLoader:
         self.image_processor = AutoImageProcessor.from_pretrained(vision_model_name,
                                                                   cache_dir=CACHE_DIR)
         self.image_mark = image_mark
+        self.image_mean = IMAGE_MEAN[vision_model_name]
+        self.image_size = IMAGE_SIZE[vision_model_name]
+        # do not apply ocr
+        if isinstance(self.image_processor, LayoutLMv3ImageProcessor):
+            self.image_processor.apply_ocr = False
 
-        assert image_process_mode in ['pad', 'resize', 'crop'], "Invalid image_process_mode"
+        assert image_process_mode in ['pad', 'warp', 'crop'], "Invalid image_process_mode"
         if image_process_mode == 'pad':
             self.process_func = partial(
                 self._expand_to_square,
-                background_color=tuple(int(x*255) for x in self.image_processor.image_mean)
+                background_color=tuple(int(x*255) for x in self.image_mean)
             )
-        elif image_process_mode == 'resize':
-            self.process_func = partial(
-                self._resize,
-                size=self.image_processor.crop_size
-            )
+        elif image_process_mode == 'warp':
+            self.process_func = partial(self._resize, size=self.image_size)
         elif image_process_mode == 'crop':
             self.process_func = lambda x: x
 
