@@ -59,7 +59,7 @@ class LlavaMetaModel:
 
     def init_vision_modules(self, pretrained_mm_adapter_path: Optional[str], **kwargs):
         # Load vision_tower
-        self.vision_tower.load_pretrained_model(**kwargs)
+        self.vision_tower.load(**kwargs)
         # Load mm_adapter
         self._load_mm_adapter(pretrained_mm_adapter_path)
 

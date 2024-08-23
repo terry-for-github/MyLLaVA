@@ -21,12 +21,15 @@ class CLIPVisionTower(nn.Module):
         # TODO compile the image_encoder to further speed up training
         # self.image_encoder = torch.compile(image_encoder)
 
-    def load_pretrained_model(self, **kwargs):
+    def load(self, **kwargs):
         if self._is_loaded:
             return
-        self.encoder = CLIPVisionModel.from_pretrained(self.name,
-                                                       cache_dir=CACHE_DIR,
-                                                       **kwargs)
+        state_dict = CLIPVisionModel.from_pretrained(
+            self.name,
+            cache_dir=CACHE_DIR,
+            **kwargs
+        ).state_dict()
+        self.encoder.load_state_dict(state_dict, strict=True)
         self._is_loaded = True
 
     @torch.no_grad()
