@@ -1,4 +1,5 @@
 import torch
+import os
 from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
@@ -56,6 +57,8 @@ def get_causal_lm(model_args: ModelArguments,
         model_args.model_name_or_path,
         cache_dir=CACHE_DIR,
     )  # type: ignore
+    if os.environ.get('LLAVA_DEBUG', None) is not None:
+        llava_config.num_hidden_layers = 4
     LlavaLlamaConfig.model_type = 'llava_llama'
 
     # We are loading a model without vision tower. (LLM only)
