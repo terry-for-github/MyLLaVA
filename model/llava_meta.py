@@ -14,7 +14,6 @@ class LlavaMetaConfig:
         vision_tower: Optional[str] = None,
         mm_adapter: Optional[str] = None,
         mm_vision_select_layer: int = -2,
-        mm_vision_select_feature: str = 'patch',
         mm_patch_merge_type: str = 'flat',
         **kwargs
     ):
@@ -22,7 +21,6 @@ class LlavaMetaConfig:
         self.vision_tower = vision_tower
         self.mm_adapter = mm_adapter
         self.mm_vision_select_layer = mm_vision_select_layer
-        self.mm_vision_select_feature = mm_vision_select_feature
         self.mm_patch_merge_type = mm_patch_merge_type
         # TODO for mousi
         # if len(model_args.vision_expert_list) > 0:

@@ -65,7 +65,6 @@ def get_causal_lm(model_args: ModelArguments,
         llava_config.vision_tower = model_args.vision_tower
         llava_config.mm_adapter = model_args.mm_adapter
         llava_config.mm_vision_select_layer = model_args.mm_vision_select_layer
-        llava_config.mm_vision_select_feature = model_args.mm_vision_select_feature
         llava_config.mm_patch_merge_type = model_args.mm_patch_merge_type
 
     # Load causal_llm

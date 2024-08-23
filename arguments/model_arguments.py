@@ -45,10 +45,6 @@ class ModelArguments:
     mm_vision_select_layer: int = field(default=-1, metadata={
         "help": "Layer of the vision encoder to use for multimodal adapter"
     })
-    mm_vision_select_feature: Literal['patch', 'cls_patch'] = \
-        field(default='patch', metadata={
-            "help": "Feature of the vision encoder to use for multimodal adapter"
-        })
 
     # moe_vision_tower arguments:
     vision_expert_list: List[str] = field(default_factory=list,  metadata={
@@ -62,9 +58,6 @@ class ModelArguments:
         assert self.mm_patch_merge_type in ["flat", "unpad"], \
             f"mm_patch_merge_type should be one of `flat` or `unpad`, got " \
             f"{self.mm_patch_merge_type}"
-        assert self.mm_vision_select_feature in ["patch", "cls_patch"], \
-            f"mm_vision_select_feature should be one of `patch` or `cls_patch`, got " \
-            f"{self.mm_vision_select_feature}"
         assert not self.tune_vision_tower, "Tuning vision tower is not supported yet"
 
     def __str__(self):
