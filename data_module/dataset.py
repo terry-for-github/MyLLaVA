@@ -28,6 +28,8 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
 
     @property
     def lengths(self) -> List[int]:
+        if not hasattr(self, '_lengths'):
+            self._cal_lengths()
         return self._lengths
 
     def _prepare(self):
@@ -36,7 +38,6 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
             self._load_json_file()
                 ._filter_columns()
                 ._check_dataset()
-                ._cal_lengths()
                 ._duplicate_image_mark()
         )
         print('Dataset preparing completed. Num data:', len(self))
@@ -63,18 +64,17 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         return self
 
     def _cal_lengths(self):
-        print('Calculate the lengths of all dialogs.')
+        print('Use group_by_lengths == True Calculate the lengths of all dialogs.')
         self._lengths = []
         pattern = r"[\n\t\r!\"#$%&'()*+,\-./:;=?@[\]^_`{}~]"
         for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
             dialog = data_dict['dialog']
             length = 0
             for message in dialog:
-                num_image = message['content'].count(self.image_mark)
                 # use number of words to estimate the length
                 length += len(message['content'].split())
+                length += message['content'].count(self.image_mark)
                 length += len(re.findall(pattern, message['content']))
-                length += num_image * (self.vision_token_num - 1)
             self._lengths.append(length)
         print('Calculation Completed.')
         return self
