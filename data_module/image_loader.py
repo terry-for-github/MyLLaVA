@@ -24,7 +24,7 @@ class ImageLoader:
         if isinstance(self.image_processor, LayoutLMv3ImageProcessor):
             self.image_processor.apply_ocr = False
 
-        assert image_process_mode in ['pad', 'warp', 'crop'], "Invalid image_process_mode"
+        assert image_process_mode in ['pad', 'warp', 'crop', 'no']
         if image_process_mode == 'pad':
             self.process_func = partial(
                 self._expand_to_square,
@@ -33,6 +33,8 @@ class ImageLoader:
         elif image_process_mode == 'warp':
             self.process_func = partial(self._resize, size=self.image_size)
         elif image_process_mode == 'crop':
+            self.process_func = lambda x: x
+        elif image_process_mode == 'no':
             self.process_func = lambda x: x
 
     @staticmethod

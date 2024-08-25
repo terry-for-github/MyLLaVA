@@ -17,11 +17,12 @@ class DataArguments:
         "help": "Whether or not the dataset is plain (Each sample has only two messages)"
     })
 
-    image_process_mode: Literal['pad', 'warp', 'crop'] = field(default='pad', metadata={
+    image_process_mode: Literal['pad', 'warp', 'crop', 'no'] = field(default='pad', metadata={
         "help": "Mode to process image\n"
                 "- pad: pad the image to square\n"
                 "- warp: warp the image to square\n"
                 "- crop: crop the image to square\n"
+                "- no: process only by processor"
     })
 
     image_mark: str = field(default="<image>", metadata={
