@@ -80,7 +80,7 @@ def get_causal_lm(model_args: ModelArguments,
     causal_lm.init_pretrained_model(
         pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path,
         attn_implementation=training_args.attn_impl,
-        # torch_dtype=compute_dtype,
+        torch_dtype=compute_dtype,
         **bnb_args
     )
 
