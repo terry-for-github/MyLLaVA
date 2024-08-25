@@ -12,12 +12,10 @@ from constants import CACHE_DIR, IMAGE_MEAN, IMAGE_SIZE
 class ImageLoader:
     def __init__(self, image_folder: str,
                  vision_model_name: str,
-                 image_mark: str,
                  image_process_mode: str):
         self.image_folder = image_folder
         self.image_processor = AutoImageProcessor.from_pretrained(vision_model_name,
                                                                   cache_dir=CACHE_DIR)
-        self.image_mark = image_mark
         self.image_mean = IMAGE_MEAN[vision_model_name]
         self.image_size = IMAGE_SIZE[vision_model_name]
         # do not apply ocr
@@ -69,10 +67,9 @@ class ImageLoader:
 class MultiTowersImageLoader:
     def __init__(self, image_folder: str,
                  vision_model_list: List[str],
-                 image_mark: str,
                  image_process_mode: str):
         self.image_loader_list = [
-            ImageLoader(image_folder, model_name, image_mark, image_process_mode)
+            ImageLoader(image_folder, model_name, image_process_mode)
             for model_name in vision_model_list
         ]
         self.image_sizes = [IMAGE_SIZE[model_name] for model_name in vision_model_list]

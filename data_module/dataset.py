@@ -6,6 +6,8 @@ from typing import List
 from tqdm import tqdm
 from torch.utils.data import Dataset
 
+from constants import IMAGE_MARK
+
 tqdm_off = os.environ.get('LOCAL_RANK', '-1') not in ['0', '-1']
 
 
@@ -63,35 +65,6 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         } for data_dict in tqdm(self.list_data_dict, disable=tqdm_off)]
         return self
 
-    def _cal_lengths(self):
-        print('Use group_by_lengths == True Calculate the lengths of all dialogs.')
-        self._lengths = []
-        pattern = r"[\n\t\r!\"#$%&'()*+,\-./:;=?@[\]^_`{}~]"
-        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
-            dialog = data_dict['dialog']
-            length = 0
-            for message in dialog:
-                # use number of words to estimate the length
-                length += len(message['content'].split())
-                length += message['content'].count(self.image_mark)
-                length += len(re.findall(pattern, message['content']))
-            self._lengths.append(length)
-        print('Calculation Completed.')
-        return self
-
-    def _duplicate_image_mark(self):
-        # image_mark is a special token. It will always be tokenized to one single input_id.
-        # So we can replace image_mark with vision_token_num*image_mark before it turns to
-        # input_ids. Then we can easily replace input_embeds with image_feature in forward()
-        print('Duplicate image_mark in all dialogs.')
-        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
-            first_message = data_dict['dialog'][0]
-            first_message['content'] = first_message['content'].replace(
-                self.image_mark, self.vision_token_num*self.image_mark
-            )
-        print('Duplication Completed.')
-        return self
-
     def _check_dataset(self):
         '''
         Check the dataset.
@@ -129,6 +102,35 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
                 if has_mark:
                     assert message['content'].count(self.image_mark) == 1
         print('Check completed.')
+        return self
+
+    def _duplicate_image_mark(self):
+        # image_mark is a special token. It will always be tokenized to one single input_id.
+        # So we can replace image_mark with vision_token_num*image_mark before it turns to
+        # input_ids. Then we can easily replace input_embeds with image_feature in forward()
+        print('Duplicate image_mark in all dialogs.')
+        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+            first_message = data_dict['dialog'][0]
+            first_message['content'] = first_message['content'].replace(
+                self.image_mark, self.vision_token_num*IMAGE_MARK
+            )
+        print('Duplication Completed.')
+        return self
+
+    def _cal_lengths(self):
+        print('Use group_by_lengths == True Calculate the lengths of all dialogs.')
+        self._lengths = []
+        pattern = r"[\n\t\r!\"#$%&'()*+,\-./:;=?@[\]^_`{}~]"
+        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+            dialog = data_dict['dialog']
+            length = 0
+            for message in dialog:
+                # use number of words to estimate the length
+                length += len(message['content'].split())
+                length += message['content'].count(IMAGE_MARK)
+                length += len(re.findall(pattern, message['content']))
+            self._lengths.append(length)
+        print('Calculation Completed.')
         return self
 
     def __getitem__(self, idx: int):

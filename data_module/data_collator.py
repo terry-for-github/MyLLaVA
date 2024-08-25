@@ -5,7 +5,7 @@ from typing import Dict, Optional
 import torch
 from transformers import PreTrainedTokenizerBase
 
-from constants import IGNORE_INDEX
+from constants import IGNORE_INDEX, IMAGE_MARK
 
 from .template import template_dict
 
@@ -13,8 +13,7 @@ from .template import template_dict
 class DataCollatorForSingleImageAtFirstDialog:
     def __init__(self,
                  tokenizer: PreTrainedTokenizerBase,
-                 version: str,
-                 image_mark: str):
+                 version: str):
         # huggingface/tokenizers: The current process just got forked, after parallelism has
         # already been used. Disabling parallelism to avoid deadlocks...
         # To disable this warning, you can either:
@@ -22,12 +21,11 @@ class DataCollatorForSingleImageAtFirstDialog:
         #     - Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = deepcopy(tokenizer)
-        self.image_mark = image_mark
         self._init_from_tokenizer(version)
 
     def _init_from_tokenizer(self, version):
         self.tokenizer.add_special_tokens({
-            'additional_special_tokens': [self.image_mark]  # type: ignore
+            'additional_special_tokens': [IMAGE_MARK]  # type: ignore
         })
         template = template_dict[version].get_template()
         if template:

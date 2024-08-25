@@ -8,6 +8,8 @@ IGNORE_INDEX = -100
 
 CACHE_DIR = None
 
+IMAGE_MARK = '<image>'
+
 
 @dataclass(frozen=True)
 class _MODEL_NAME:
@@ -103,7 +105,7 @@ MODEL_CLASS = {k: v[_MODEL_ATTRIBUTE.MODEL_CLASS] for k, v in _MODEL_CONSTANTS.i
 MODEL_CONFIG = {k: v[_MODEL_ATTRIBUTE.MODEL_CONFIG] for k, v in _MODEL_CONSTANTS.items()}
 
 
-__all__ = ['IGNORE_INDEX', 'CACHE_DIR',
+__all__ = ['IGNORE_INDEX', 'CACHE_DIR', 'IMAGE_MARK',
            'IMAGE_SIZE', 'IMAGE_MEAN', 'HIDDEN_SIZE', 'PATCH_SIZE', 'NUM_PATCHES',
            'HAS_CLS_TOKEN', 'MODEL_CLASS', 'MODEL_CONFIG']
 

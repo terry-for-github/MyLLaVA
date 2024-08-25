@@ -9,13 +9,11 @@ def get_dataset_and_data_collator(tokenizer, data_args, vision_tower,
         image_loader = MultiTowersImageLoader(
             image_folder=data_args.image_folder,
             vision_model_list=vision_tower,
-            image_mark=data_args.image_mark,
             image_process_mode=data_args.image_process_mode)
     else:
         image_loader = ImageLoader(
             image_folder=data_args.image_folder,
             vision_model_name=vision_tower[0],
-            image_mark=data_args.image_mark,
             image_process_mode=data_args.image_process_mode)
 
     return (
@@ -28,7 +26,6 @@ def get_dataset_and_data_collator(tokenizer, data_args, vision_tower,
         DataCollatorForSingleImageAtFirstDialog(
             tokenizer=tokenizer,
             version=version,
-            image_mark=data_args.image_mark,
         )
     )
 
