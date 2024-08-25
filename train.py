@@ -79,6 +79,21 @@ def get_tokenizer(model_args: ModelArguments):
     return tokenizer
 
 
+def get_num_vision_token(model) -> int:
+    vision_tower = model.get_vision_tower()
+    mm_adapter = model.get_mm_adapter()
+    dummy_feature = vision_tower.dummy_feature
+    from transformers.integrations import is_deepspeed_zero3_enabled
+    if is_deepspeed_zero3_enabled():
+        import deepspeed
+        gather_params = deepspeed.zero.GatheredParameters
+        with gather_params(mm_adapter.parameters(), modifier_rank=0):
+            dummy_output = mm_adapter(dummy_feature)
+    else:
+        dummy_output = mm_adapter(dummy_feature)
+    return dummy_output.shape[1]
+
+
 def main():
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments)  # type: ignore
@@ -98,16 +113,7 @@ def main():
     # if training_args.gradient_checkpointing:
     #     causal_lm.enable_input_require_grads()
 
-    dummy_feature = causal_lm.get_vision_tower().dummy_feature
-    from transformers.integrations import is_deepspeed_zero3_enabled
-    if is_deepspeed_zero3_enabled():
-        import deepspeed
-        gather_params = deepspeed.zero.GatheredParameters
-        with gather_params(causal_lm.get_mm_adapter().parameters(), modifier_rank=0):
-            dummy_output = causal_lm.get_mm_adapter()(dummy_feature)
-    else:
-        dummy_output = causal_lm.get_mm_adapter()(dummy_feature)
-    num_vision_token = dummy_output.shape[1]
+    num_vision_token = get_num_vision_token(causal_lm)
 
     train_dataset, data_collator = get_dataset_and_data_collator(
         tokenizer=tokenizer,
