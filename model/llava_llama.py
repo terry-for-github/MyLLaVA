@@ -4,7 +4,6 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 from transformers import LlamaConfig, LlamaModel, LlamaForCausalLM
 from transformers.modeling_outputs import CausalLMOutputWithPast
-from transformers.generation.utils import GenerateOutput
 
 from .llava_meta import LlavaMetaModel, LlavaMetaForCausalLM, LlavaMetaConfig
 
@@ -79,18 +78,6 @@ class LlavaLlamaForCausalLM(LlavaMetaForCausalLM, LlamaForCausalLM):
             position_ids=position_ids,
             **kwargs
         )
-
-    # def prepare_inputs_for_generation(self):
-    #     pass
-
-    @torch.no_grad()
-    def generate(
-        self,
-        input_ids: Optional[torch.LongTensor] = None,
-        images: Optional[torch.FloatTensor] = None,
-        **kwargs
-    ) -> Union[GenerateOutput, torch.LongTensor]:
-        pass
 
 
 AutoConfig.register("llava_llama", LlavaLlamaConfig)
