@@ -2,31 +2,8 @@ from typing import List, Optional
 import random
 
 from torch.utils.data import Sampler
-from transformers import (
-    Trainer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments
-)
+from transformers import Trainer
 from transformers.trainer_utils import has_length
-from transformers.trainer import PREFIX_CHECKPOINT_DIR
-
-
-class SkipFinalSaveCallback(TrainerCallback):
-    '''Override the default behavior to save the model at the end of training'''
-    def on_step_end(self, args: TrainingArguments, state: TrainerState,
-                    control: TrainerControl, **kwargs):
-        if state.global_step >= state.max_steps:
-            control.should_save = False
-        return control
-
-    def on_epoch_end(self, args: TrainingArguments, state: TrainerState,
-                     control: TrainerControl, **kwargs):
-        if state.global_step >= state.max_steps:
-            control.should_save = False
-        return control
-
-    def on_train_end(self, args: TrainingArguments, state: TrainerState,
-                     control: TrainerControl, **kwargs):
-        control.should_save = True
-        return control
 
 
 class LengthGroupedRandomSampler(Sampler):
@@ -98,29 +75,3 @@ class LLaVATrainer(Trainer):
             world_size=self.args.world_size,
             gradient_acc_steps=self.args.gradient_accumulation_steps
         )
-
-    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch,
-                                 ignore_keys_for_eval):
-        super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch,
-                                         ignore_keys_for_eval)
-        # We use the SkipFinalSaveCallback to skip the final save.
-        # We need to delete all the checkpoints when training ends.
-        # But the delete function is inside the _rotate_checkpoints function.
-        # So we need to call the _rotate_checkpoints function here.
-        if self.control.should_training_stop:
-            run_dir = self._get_output_dir(trial=trial)
-            # save_total_limit will be set to 0 inside the rotate function.
-            tmp_save_total_limit = self.args.save_total_limit
-            self._rotate_checkpoints(output_dir=run_dir)
-            self.args.save_total_limit = tmp_save_total_limit
-
-    # Hack the source code to delete all the checkpoints when training ends.
-    # This function will be called inside the _rotate_checkpoints function.
-    # It skips the check `return if save_total_limit == 0`
-    # Finally it will delete all the `checkpoint-xxx` directories.
-    def _sorted_checkpoints(
-        self, output_dir=None, checkpoint_prefix=PREFIX_CHECKPOINT_DIR, use_mtime=False
-    ) -> List[str]:
-        if self.control.should_training_stop:
-            self.args.save_total_limit = 0
-        return super()._sorted_checkpoints(output_dir, checkpoint_prefix, use_mtime)

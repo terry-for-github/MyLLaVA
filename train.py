@@ -4,7 +4,7 @@ import builtins
 
 import transformers
 
-from llava_trainer import LLaVATrainer, SkipFinalSaveCallback
+from llava_trainer import LLaVATrainer
 from arguments import ModelArguments, DataArguments, TrainingArguments
 from model import get_causal_lm, LlavaLlamaForCausalLM
 from data_module import get_dataset_and_data_collator
@@ -108,8 +108,7 @@ def main():
         tokenizer=tokenizer,
         args=training_args,
         train_dataset=train_dataset,
-        data_collator=data_collator,
-        callbacks=[SkipFinalSaveCallback()]
+        data_collator=data_collator
     )
 
     has_checkpoints = bool(glob.glob(os.path.join(training_args.output_dir, 'checkpoint-*')))
