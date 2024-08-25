@@ -1,4 +1,5 @@
 import os
+import re
 from copy import deepcopy
 from typing import Dict, Optional
 
@@ -21,6 +22,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         #     - Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = deepcopy(tokenizer)
+        self.is_plain = version == 'plain'
         self._init_from_tokenizer(version)
 
     def _init_from_tokenizer(self, version):
@@ -39,6 +41,13 @@ class DataCollatorForSingleImageAtFirstDialog:
         self.pad_token_id = self.tokenizer.pad_token_id
         self.image_mark_id = self.tokenizer.additional_special_tokens_ids[0]
 
+    def _deal_with_plain_template(self, list_dialog):
+        if not self.is_plain:
+            return
+        for dialog in list_dialog:
+            result = re.findall(rf'{IMAGE_MARK}', dialog[0]['content'])
+            dialog[0]['content'] = ''.join(result)
+
     def __call__(self, list_data_dict: list) -> Dict[str, Optional[torch.Tensor]]:
         '''
         Input: list_data_dict = [{
@@ -51,6 +60,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         '''
         list_image = [data_dict['image'] for data_dict in list_data_dict]
         list_dialog = [data_dict['dialog'] for data_dict in list_data_dict]
+        self._deal_with_plain_template(list_dialog)
         input_dict: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
             list_dialog,
             tokenize=True,
