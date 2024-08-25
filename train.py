@@ -110,9 +110,6 @@ def main():
     causal_lm = get_causal_lm(model_args, training_args)
     set_ignore_when_save(causal_lm, model_args)
 
-    # if training_args.gradient_checkpointing:
-    #     causal_lm.enable_input_require_grads()
-
     num_vision_token = get_num_vision_token(causal_lm)
 
     train_dataset, data_collator = get_dataset_and_data_collator(
