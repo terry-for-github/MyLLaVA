@@ -48,17 +48,9 @@ class LlavaMetaModel:
         #     )
         assert config.vision_tower is not None, 'Vision tower is not specified.'
         assert config.mm_adapter is not None, 'Multimodal adapter is not specified.'
-        self.vision_tower = build_vision_tower(
-            config.vision_tower,
-            config.mm_vision_select_layer,
-            config.mm_vision_select_feature,
-        )
+        self.vision_tower = build_vision_tower(config)
         config.mm_hidden_size = self.vision_tower.hidden_size
-        self.mm_adapter = build_mm_adapter(
-            config.mm_adapter,
-            config.mm_hidden_size,
-            config.hidden_size
-        )
+        self.mm_adapter = build_mm_adapter(config)
 
     def init_vision_modules(self, pretrained_mm_adapter_path: Optional[str], **kwargs):
         # Load vision_tower

@@ -95,11 +95,25 @@ def main():
     causal_lm = get_causal_lm(model_args, training_args)
     set_ignore_when_save(causal_lm, model_args)
 
+    # if training_args.gradient_checkpointing:
+    #     causal_lm.enable_input_require_grads()
+
+    dummy_feature = causal_lm.get_vision_tower().dummy_feature
+    from transformers.integrations import is_deepspeed_zero3_enabled
+    if is_deepspeed_zero3_enabled():
+        import deepspeed
+        gather_params = deepspeed.zero.GatheredParameters
+        with gather_params(causal_lm.get_mm_adapter().parameters(), modifier_rank=0):
+            dummy_output = causal_lm.get_mm_adapter()(dummy_feature)
+    else:
+        dummy_output = causal_lm.get_mm_adapter()(dummy_feature)
+    num_vision_token = dummy_output.shape[1]
+
     train_dataset, data_collator = get_dataset_and_data_collator(
         tokenizer=tokenizer,
         data_args=data_args,
-        vision_model_name=model_args.vision_tower,
-        vision_token_num=causal_lm.get_vision_tower().num_patches,
+        vision_tower=model_args.vision_tower,
+        num_vision_token=num_vision_token,
         version=model_args.version
     )
 

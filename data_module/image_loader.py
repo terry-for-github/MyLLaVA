@@ -64,3 +64,23 @@ class ImageLoader:
         # image.shape == [1, 3, width, height], type(image) == Tensor
         image = self.image_processor(image, return_tensors='pt')['pixel_values']
         return image[0]
+
+
+class MultiTowersImageLoader:
+    def __init__(self, image_folder: str,
+                 vision_model_list: List[str],
+                 image_mark: str,
+                 image_process_mode: str):
+        self.image_loader_list = [
+            ImageLoader(image_folder, model_name, image_mark, image_process_mode)
+            for model_name in vision_model_list
+        ]
+        self.image_sizes = [IMAGE_SIZE[model_name] for model_name in vision_model_list]
+
+    def __call__(self, image_file: Optional[str]) -> Optional[torch.Tensor]:
+        '''Load and preprocess multiple images'''
+        if image_file is None:
+            return None
+        images = [loader(image_file) for loader in self.image_loader_list]
+        images = torch.cat([image.view(3, -1) for image in images], dim=1)  # type: ignore
+        return images

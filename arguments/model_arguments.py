@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, field
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -21,8 +21,12 @@ class ModelArguments:
         "help": "Whether to tune the multimodal adapter of the model"
     })
 
-    vision_tower: str = field(metadata={"help": "Name of the vision tower"})
-    mm_adapter: str = field(metadata={"help": "Name of the multimodal adapter"})
+    vision_tower: List[str] = field(default_factory=list, metadata={
+        "help": "Name of the vision tower"
+    })
+    mm_adapter: str = field(default='linear', metadata={
+        "help": "Name of the multimodal adapter"
+    })
 
     pretrained_mm_adapter_path: Optional[str] = field(default=None, metadata={
         "help": "Path to pretrained multimodal adapter"
@@ -42,14 +46,10 @@ class ModelArguments:
     mm_patch_merge_type: str = field(default='flat', metadata={
         "help": "Type of merging image patch tokens"
     })
-    mm_vision_select_layer: int = field(default=-1, metadata={
+    mm_vision_select_layer: List[int] = field(default_factory=list, metadata={
         "help": "Layer of the vision encoder to use for multimodal adapter"
     })
 
-    # moe_vision_tower arguments:
-    vision_expert_list: List[str] = field(default_factory=list,  metadata={
-        "help": "List of experts for vision tower"
-    })
     m_patch_one_token: List[int] = field(default_factory=list, metadata={
         "help": "List of number of patches combined into one token for each expert"
     })

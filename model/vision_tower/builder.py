@@ -1,9 +1,11 @@
-from .clip_tower import CLIPVisionTower
+from .single_tower import SingleVisionTower
+from .multi_tower import MultiVisionTower
 
 
-def build_vision_tower(vision_tower_type: str, select_layer: int, select_feature: str):
-    if "clip" in vision_tower_type and (vision_tower_type.startswith("openai") or
-                                        vision_tower_type.startswith("laion")):
-        return CLIPVisionTower(vision_tower_type, select_layer)
+def build_vision_tower(config):
+    assert len(config.vision_tower) > 0
+    assert len(config.vision_tower) == len(config.mm_vision_select_layer)
+    if len(config.vision_tower) == 1:
+        return SingleVisionTower(config.vision_tower[0], config.mm_vision_select_layer[0])
     else:
-        raise NotImplementedError(f"Vision tower {vision_tower_type} is not implemented.")
+        return MultiVisionTower(config.vision_tower, config.mm_vision_select_layer)

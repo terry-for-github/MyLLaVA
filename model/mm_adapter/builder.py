@@ -2,8 +2,11 @@ import re
 import torch.nn as nn
 
 
-def build_mm_adapter(mm_adapter_type: str, mm_hidden_size: int, hidden_size: int):
 
+def build_mm_adapter(config):
+    mm_adapter_type: str = config.mm_adapter
+    mm_hidden_size = config.mm_hidden_size
+    hidden_size = config.hidden_size
     if mm_adapter_type == 'linear':
         return nn.Linear(mm_hidden_size, hidden_size)
     if mm_adapter_type == 'identity':
