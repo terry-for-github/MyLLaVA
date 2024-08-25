@@ -134,6 +134,7 @@ def main():
     has_checkpoints = bool(glob.glob(os.path.join(training_args.output_dir, 'checkpoint-*')))
     trainer.train(resume_from_checkpoint=has_checkpoints)
 
+    trainer.save_state()
     trainer.save_model(training_args.output_dir)
     # FIXME Update causal_llm.config
     # causal_lm.config.image_aspect_ratio = data_args.image_aspect_ratio
