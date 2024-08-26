@@ -105,6 +105,7 @@ class LlavaMetaForCausalLM:
     def init_vision_modules(self, **kwargs):
         self.model.init_vision_modules(**kwargs)  # type: ignore
 
+    # Llava cant only accept input_ids when there has images.
     def forward(
         self,
         input_ids: torch.LongTensor,
@@ -132,7 +133,6 @@ class LlavaMetaForCausalLM:
             inputs_embeds[vision_token_pos] = image_features[image_masks]  # type: ignore
 
         return super().forward(  # type: ignore
-            input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
