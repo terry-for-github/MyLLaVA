@@ -10,10 +10,8 @@ class Llama3Template(BaseTemplate):
     gpt_role: str = field(default="assistant")
     system_prompt: str = field(default=(
         "You are a highly intelligent and helpful language and vision AI assistant. "
-        "Whenever an image is present in the conversation, very carefully examine it "
-        "and consider its content when formulating your response. You should give concise "
-        "responses to very simple questions, but provide thorough responses to more complex "
-        "and open-ended questions."
+        "Give concise responses to very simple questions, but provide thorough responses "
+        "to more complex and open-ended questions."
     ))
 
     def get_template(self):
@@ -22,20 +20,20 @@ class Llama3Template(BaseTemplate):
             f"{{% for message in loop_messages %}}"
             f"{{% if loop.index0 == 0 %}}"
             f"{{{{ bos_token }}}}"
-            f"{{{{ '<|start_header_id|>' + '{self.sys_role}' + '<|end_header_id|>\n\n' }}}}"
+            f"{{{{ '<|start_header_id|>' + '{self.sys_role}' + '<|end_header_id|>\n' }}}}"
             f"{{{{ '{self.system_prompt}' + eos_token }}}}"
             f"{{% endif %}}"
             f"{{% if loop.index0 % 2 == 0 %}}"
-            f"{{{{ '<|start_header_id|>' + '{self.human_role}' + '<|end_header_id|>\n\n' }}}}"
+            f"{{{{ '\n<|start_header_id|>' + '{self.human_role}' + '<|end_header_id|>\n' }}}}"
             f"{{{{ message['content']|trim + eos_token }}}}"
             f"{{% else %}}"
-            f"{{{{ '<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n\n' }}}}"
+            f"{{{{ '\n<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n' }}}}"
             f"{{% generation %}}"
             f"{{{{ message['content']|trim + eos_token }}}}"
             f"{{% endgeneration %}}"
             f"{{% endif %}}"
             f"{{% endfor %}}"
             f"{{% if add_generation_prompt %}}"
-            f"{{{{ '<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n\n'}}}}"
+            f"{{{{ '\n<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n'}}}}"
             f"{{% endif %}}"
         )
