@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 import torch
+import deepspeed
+from transformers.integrations import is_deepspeed_zero3_enabled
 
 from .vision_tower.builder import build_vision_tower
 from .mm_adapter.builder import build_mm_adapter
@@ -86,13 +88,8 @@ class LlavaMetaModel:
             no_prefix_name = name.split('model.mm_adapter.')[1]
             no_prefix_state_dict[no_prefix_name] = param
 
-        from transformers.integrations import is_deepspeed_zero3_enabled
-        if is_deepspeed_zero3_enabled():
-            import deepspeed
-            gather_params = deepspeed.zero.GatheredParameters
-            with gather_params(self.mm_adapter.parameters(), modifier_rank=0):
-                self.mm_adapter.load_state_dict(no_prefix_state_dict)
-        else:
+        with deepspeed.zero.GatheredParameters(self.mm_adapter.parameters(), modifier_rank=0,
+                                               enabled=is_deepspeed_zero3_enabled()):
             self.mm_adapter.load_state_dict(no_prefix_state_dict)
 
         print('[DEBUG]', 1, '===============================================================')

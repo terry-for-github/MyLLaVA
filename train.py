@@ -3,6 +3,8 @@ import glob
 import builtins
 
 import transformers
+import deepspeed
+from transformers.integrations import is_deepspeed_zero3_enabled
 
 from llava_trainer import LLaVATrainer
 from arguments import ModelArguments, DataArguments, TrainingArguments
@@ -83,13 +85,8 @@ def get_num_vision_token(model) -> int:
     vision_tower = model.get_vision_tower()
     mm_adapter = model.get_mm_adapter()
     dummy_feature = vision_tower.dummy_feature
-    from transformers.integrations import is_deepspeed_zero3_enabled
-    if is_deepspeed_zero3_enabled():
-        import deepspeed
-        gather_params = deepspeed.zero.GatheredParameters
-        with gather_params(mm_adapter.parameters(), modifier_rank=0):
-            dummy_output = mm_adapter(dummy_feature)
-    else:
+    with deepspeed.zero.GatheredParameters(mm_adapter.parameters(),
+                                           enabled=is_deepspeed_zero3_enabled()):
         dummy_output = mm_adapter(dummy_feature)
     return dummy_output.shape[1]
 
