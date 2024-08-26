@@ -160,9 +160,9 @@ if __name__ == '__main__':
         if debug_level >= now_debug_level and is_local_main_process:
             builtins_print(*args, **kwargs)
 
+    builtins.print = custom_print
+    
     if is_local_main_process:
         set_logger()
-
-    builtins.print = custom_print
 
     main()
