@@ -85,7 +85,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         input_dict['vision_token_pos'] = vision_token_pos
 
         input_dict['images'] = torch.stack(list_image)
-        input_dict['image_masks'] = torch.cat(list_image_mask)
+        input_dict['image_masks'] = torch.stack(list_image_mask)
 
         # verify group_by_length
         # print([torch.sum(mask == 1).item() for mask in input_dict['attention_mask']])

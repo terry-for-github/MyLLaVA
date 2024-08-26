@@ -144,7 +144,6 @@ class LlavaMetaForCausalLM(ABC):
         input_embeds = embed_tokens(input_ids)
         # image_features: image_num x patch_num x dim
         image_features = self.encode_images(images)
-        image_features = image_features.view(-1, image_features.size(-1))
         # Replace the image tokens with image features
         input_embeds[vision_token_pos] = image_features[image_masks]
         return input_embeds
