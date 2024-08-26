@@ -52,24 +52,26 @@ class LlavaLlamaForCausalLM(LlavaMetaForCausalLM, LlamaForCausalLM):
 
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
+        input_ids: torch.LongTensor,
         attention_mask: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         images: Optional[torch.FloatTensor] = None,
         vision_token_pos: Optional[torch.BoolTensor] = None,
+        image_masks: Optional[torch.BoolTensor] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         **kwargs
     ) -> Union[Tuple, CausalLMOutputWithPast]:
-
-        assert inputs_embeds is None and position_ids is None, \
-            'inputs_embeds and position_ids must be None'
-        assert input_ids is not None, 'input_ids is None'
-        inputs_embeds = self.prepare_input_embeds_for_forward(
-            input_ids=input_ids,
-            images=images,
-            vision_token_pos=vision_token_pos
-        )  # type: ignore
+        if images is not None:
+            assert vision_token_pos is not None, 'vision_token_pos is None'
+            assert image_masks is not None, 'image_masks is None'
+            assert inputs_embeds is None, 'inputs_embeds is not None'
+            inputs_embeds = self.prepare_input_embeds_for_forward(
+                input_ids=input_ids,
+                images=images,
+                vision_token_pos=vision_token_pos,
+                image_masks=image_masks
+            )  # type: ignore
 
         return super().forward(
             inputs_embeds=inputs_embeds,

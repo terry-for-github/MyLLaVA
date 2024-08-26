@@ -1,7 +1,7 @@
 import os
 import re
 from copy import deepcopy
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 from transformers import PreTrainedTokenizerBase
@@ -48,11 +48,12 @@ class DataCollatorForSingleImageAtFirstDialog:
             result = re.findall(rf'{IMAGE_MARK}', dialog[0]['content'])
             dialog[0]['content'] = ''.join(result)
 
-    def __call__(self, list_data_dict: list) -> Dict[str, Optional[torch.Tensor]]:
+    def __call__(self, list_data_dict: list) -> Dict[str, torch.Tensor]:
         '''
         Input: list_data_dict = [{
                 'image': image,
                 'dialog': [{'role': role, 'content': content}, ...]
+                'image_mask': tensor.bool
             }]
         Output: {'input_ids': input_ids, 'labels': labels,
                  'vision_token_pos': vision_token_pos,
@@ -60,6 +61,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         '''
         list_image = [data_dict['image'] for data_dict in list_data_dict]
         list_dialog = [data_dict['dialog'] for data_dict in list_data_dict]
+        list_image_mask = [data_dict['image_mask'] for data_dict in list_data_dict]
         self._deal_with_plain_template(list_dialog)
         input_dict: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
             list_dialog,
@@ -72,7 +74,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         )
         input_dict['assistant_masks'] = torch.tensor(input_dict['assistant_masks'])
 
-        self._drop_max_length_sample(input_dict, list_image)
+        self._drop_max_length_sample(input_dict, len(list_dialog))
 
         labels = input_dict.pop('assistant_masks')
         labels[labels == 0] = IGNORE_INDEX
@@ -82,25 +84,18 @@ class DataCollatorForSingleImageAtFirstDialog:
         input_dict['input_ids'][vision_token_pos] = self.pad_token_id
         input_dict['vision_token_pos'] = vision_token_pos
 
-        batch_data_dict: Dict[str, Optional[torch.Tensor]] = input_dict  # type: ignore
-        not_none_list_image = [image for image in list_image if image is not None]
-        if len(not_none_list_image) == 0:
-            batch_data_dict['images'] = None
-            batch_data_dict['vision_token_pos'] = None
-        else:
-            batch_data_dict['images'] = torch.stack([
-                image for image in list_image if image is not None
-            ])
+        input_dict['images'] = torch.stack(list_image)
+        input_dict['image_masks'] = torch.cat(list_image_mask)
+
         # verify group_by_length
         # print([torch.sum(mask == 1).item() for mask in input_dict['attention_mask']])
-        return batch_data_dict
+        return input_dict
 
-    def _drop_max_length_sample(self, input_dict, list_image):
+    def _drop_max_length_sample(self, input_dict, batch_size):
         '''
         Drop the sample which length reach the model_max_length.
         They are very likely samples that were truncated after exceeding model_max_length.
         '''
-        batch_size = len(list_image)
         drop_num = 0
         for i in range(batch_size):
             length = torch.sum(input_dict['attention_mask'][i] == 1).item()
@@ -114,36 +109,5 @@ class DataCollatorForSingleImageAtFirstDialog:
             input_ids[input_ids == self.image_mark_id] = self.pad_token_id
             attention_mask[attention_mask == 1] = 0
             assistent_mask[assistent_mask == 1] = 0
-            list_image[i] = None
         if drop_num > 0:
             print(f'Dropped {drop_num} samples exceed max_length')
-
-    def _deal_with_overflow(self, input_dict, list_image):
-        '''deprecated'''
-        mapping_list = input_dict.pop('overflow_to_sample_mapping').tolist()
-        if len(mapping_list) == len(list_image):
-            return
-        idx = 0
-        last_idx = -1
-        num_overflow = 0
-        total_overflow = len(mapping_list) - len(list_image)
-        while idx < len(mapping_list):
-            if mapping_list[idx] != last_idx:
-                last_idx = mapping_list[idx]
-                idx += 1
-            num_overflow += 1
-            del list_image[idx]
-            for v in input_dict.values():
-                # delete the idx-th sample
-                v = torch.cat([v[:idx], v[idx+1:]])
-
-            input_ids = input_dict['input_ids'][idx - 1]
-            attention_mask = input_dict['attention_mask'][idx - 1]
-            assistent_mask = input_dict['assistant_masks'][idx - 1]
-
-            input_ids[input_ids == self.image_mark_id] = self.pad_token_id
-            attention_mask[attention_mask == 1] = 0
-            assistent_mask[assistent_mask == 1] = 0
-            list_image[idx - 1] = None
-        assert num_overflow == total_overflow
-        print(f'{total_overflow} samples exceed max_length. Filtered')

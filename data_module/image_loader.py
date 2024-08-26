@@ -52,10 +52,10 @@ class ImageLoader:
     def _resize(pil_image, size):
         return pil_image.resize((size, size))
 
-    def __call__(self, image_file: Optional[str]) -> Optional[torch.Tensor]:
+    def __call__(self, image_file: Optional[str]) -> torch.Tensor:
         '''Load and preprocess image'''
         if image_file is None:
-            return None
+            return torch.randn(3, self.image_size, self.image_size)
         image_path = os.path.join(self.image_folder, image_file)
         image = Image.open(image_path).convert('RGB')
         image = self.process_func(image)
@@ -76,8 +76,6 @@ class MultiTowersImageLoader:
 
     def __call__(self, image_file: Optional[str]) -> Optional[torch.Tensor]:
         '''Load and preprocess multiple images'''
-        if image_file is None:
-            return None
         images = [loader(image_file) for loader in self.image_loader_list]
         images = torch.cat([image.view(3, -1) for image in images], dim=1)  # type: ignore
         return images

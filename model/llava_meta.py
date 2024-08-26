@@ -126,13 +126,15 @@ class LlavaMetaForCausalLM(ABC):
 
     def encode_images(self, images):
         image_features = self.get_vision_tower()(images)  # type: ignore
-        return self.get_mm_adapter()(image_features)  # type:ignore
+        image_features = self.get_mm_adapter()(image_features)  # type:ignore
+        return image_features
 
     def prepare_input_embeds_for_forward(
         self,
         input_ids: torch.LongTensor,
-        images: Optional[torch.FloatTensor],
-        vision_token_pos: Optional[torch.BoolTensor]
+        images: torch.FloatTensor,
+        vision_token_pos: torch.BoolTensor,
+        image_masks: torch.BoolTensor
     ):
         '''
         1. If images is None, return the input embeddings directly.
@@ -142,16 +144,10 @@ class LlavaMetaForCausalLM(ABC):
         '''
         embed_tokens: torch.nn.Module = self.get_input_embeddings()  # type: ignore
 
-        if images is None or vision_token_pos is None:
-            assert (vision_token_pos is None) == (images is None)
-            return embed_tokens(input_ids)
-
         input_embeds = embed_tokens(input_ids)
-
         # image_features: image_num x patch_num x dim
         image_features = self.encode_images(images)
         image_features = image_features.view(-1, image_features.size(-1))
-
         # Replace the image tokens with image features
-        input_embeds[vision_token_pos] = image_features
+        input_embeds[vision_token_pos] = image_features[image_masks]
         return input_embeds
