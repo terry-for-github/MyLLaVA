@@ -18,6 +18,7 @@ class LlavaLlamaConfig(LlavaMetaConfig, LlamaConfig):
 # Otherwise, the __init__ method of it wont be called
 class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
     config_class = LlavaLlamaConfig
+    _no_split_modules = ['CLIPVisionModel']
 
 
 # LlavaMetaForCausalLM has no __init__ method

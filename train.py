@@ -136,6 +136,7 @@ def main():
 
 if __name__ == '__main__':
     from accelerate import PartialState
+    is_main_process = PartialState().is_main_process
     is_local_main_process = PartialState().is_local_main_process
     builtins_print = builtins.print
 
@@ -159,7 +160,7 @@ if __name__ == '__main__':
 
     builtins.print = custom_print
 
-    if is_local_main_process:
+    if is_main_process:
         set_logger()
 
     main()

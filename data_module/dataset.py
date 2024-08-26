@@ -1,6 +1,6 @@
 import json
 import os
-import re
+
 from typing import List
 
 from tqdm import tqdm
@@ -121,15 +121,15 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
     def _cal_lengths(self):
         print('Use group_by_lengths == True Calculate the lengths of all dialogs.')
         self._lengths = []
-        pattern = r"[\n\t\r!\"#$%&'()*+,\-./:;=?@[\]^_`{}~]"
+        pattern = " \n\t\r!\"#$%&'()*+,-./:;=?@[]^_`{}~"
         for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
             dialog = data_dict['dialog']
             length = 0
             for message in dialog:
                 # use number of words to estimate the length
-                length += len(message['content'].split())
+                length += len(list(filter(lambda x: (x != ""),
+                                          message['content'].split(pattern))))
                 length += message['content'].count(IMAGE_MARK)
-                length += len(re.findall(pattern, message['content']))
             self._lengths.append(length)
         print('Calculation Completed.')
         return self
