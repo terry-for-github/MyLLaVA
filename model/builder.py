@@ -49,7 +49,7 @@ def get_causal_lm(model_args: ModelArguments,
     # compute_dtype in [torch.float16, torch.bfloat16, torch.float32]
     compute_dtype = get_compute_dtype(training_args)
     # Not support bits_and_bytes right now
-    bnb_args = {} if True else get_bnb_args(training_args, compute_dtype)
+    bnb_args = get_bnb_args(training_args, compute_dtype)
 
     # Temporarily change model_type to llama to avoid the warning
     LlavaLlamaConfig.model_type = 'llama'
@@ -77,14 +77,14 @@ def get_causal_lm(model_args: ModelArguments,
         **bnb_args
     )  # type: ignore
 
-    causal_lm.init_pretrained_model(
+    causal_lm.init_vision_modules(
         pretrained_mm_adapter_path=model_args.pretrained_mm_adapter_path,
         attn_implementation=training_args.attn_impl,
         torch_dtype=compute_dtype,
         **bnb_args
     )
 
-    backbone: torch.nn.Module = causal_lm.get_model()
+    backbone: torch.nn.Module = causal_lm.model
     vision_tower: torch.nn.Module = causal_lm.get_vision_tower()
     mm_adapter: torch.nn.Module = causal_lm.get_mm_adapter()
     print('[DEBUG]', 1, '===================================================================')

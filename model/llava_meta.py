@@ -1,10 +1,11 @@
 import os
-from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import torch
 import deepspeed
 from transformers.integrations import is_deepspeed_zero3_enabled
+from transformers.cache_utils import Cache
+from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from .vision_tower.builder import build_vision_tower
 from .mm_adapter.builder import build_mm_adapter
@@ -36,10 +37,6 @@ class LlavaMetaConfig:
 class LlavaMetaModel:
     def __init__(self, config):
         super().__init__(config)  # type: ignore
-        print('[DEBUG]', 1, '===============================================================')
-        print('[DEBUG]', 1, 'LlavaMetaModel init')
-        print('[DEBUG]', 1, 'config', config)
-        print('[DEBUG]', 1, '===============================================================')
         # TODO what is this means
         # if model_args.mm_patch_merge_type == 'unpad':
         #     embed_std = 1 / torch.sqrt(
@@ -59,6 +56,9 @@ class LlavaMetaModel:
         self.vision_tower.load(**kwargs)
         # Load mm_adapter
         self._load_mm_adapter(pretrained_mm_adapter_path)
+
+    def encode_images(self, images):
+        return self.mm_adapter(self.vision_tower(images))
 
     def _load_mm_adapter(self, state_dict_path: Optional[str]):
         if state_dict_path is None:
@@ -92,58 +92,55 @@ class LlavaMetaModel:
                                                enabled=is_deepspeed_zero3_enabled()):
             self.mm_adapter.load_state_dict(no_prefix_state_dict)
 
-        print('[DEBUG]', 1, '===============================================================')
-        print('[DEBUG]', 1, 'Loading pretrained mm_adapter from:')
-        print('[DEBUG]', 1, state_dict_path)
-        print('[DEBUG]', 1, 'mm_adapter_state_dict')
-        print('[DEBUG]', 1, state_dict.keys())
-        print('[DEBUG]', 1, '===============================================================')
 
-
-class LlavaMetaForCausalLM(ABC):
+class LlavaMetaForCausalLM:
     _keys_to_ignore_on_load_missing = ['vision_tower', 'mm_adapter']
 
-    @abstractmethod
-    def get_model(self) -> LlavaMetaModel:
-        pass
-
     def get_vision_tower(self):
-        return self.get_model().vision_tower
+        return self.model.vision_tower  # type: ignore
 
     def get_mm_adapter(self):
-        return self.get_model().mm_adapter
+        return self.model.mm_adapter  # type: ignore
 
-    def init_vision_tokenizer(self, model_args, tokenizer):
-        if model_args.mm_use_im_patch_token:
-            pass
-        if model_args.mm_use_im_start_end:
-            pass
-        elif model_args.mm_use_im_patch_token:
-            pass
+    def init_vision_modules(self, **kwargs):
+        self.model.init_vision_modules(**kwargs)  # type: ignore
 
-    def encode_images(self, images):
-        image_features = self.get_vision_tower()(images)  # type: ignore
-        image_features = self.get_mm_adapter()(image_features)  # type:ignore
-        return image_features
-
-    def prepare_input_embeds_for_forward(
+    def forward(
         self,
         input_ids: torch.LongTensor,
-        images: torch.FloatTensor,
-        vision_token_pos: torch.BoolTensor,
-        image_masks: torch.BoolTensor
-    ):
-        '''
-        1. If images is None, return the input embeddings directly.
-        2. Embed the input_ids to input_embeds
-        3. Encode the images and flatten the image features.
-        4. Replace input_embeds with image features at vision_token_pos.
-        '''
-        embed_tokens: torch.nn.Module = self.get_input_embeddings()  # type: ignore
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[Union[Cache, List[torch.FloatTensor]]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        images: Optional[torch.FloatTensor] = None,
+        vision_token_pos: Optional[torch.BoolTensor] = None,
+        image_masks: Optional[torch.BoolTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[torch.LongTensor] = None,
+    ) -> Union[Tuple, CausalLMOutputWithPast]:
+        if images is not None:
+            assert vision_token_pos is not None, 'vision_token_pos is None'
+            assert image_masks is not None, 'image_masks is None'
+            assert inputs_embeds is None, 'inputs_embeds is not None'
 
-        input_embeds = embed_tokens(input_ids)
-        # image_features: image_num x patch_num x dim
-        image_features = self.encode_images(images)
-        # Replace the image tokens with image features
-        input_embeds[vision_token_pos] = image_features[image_masks]
-        return input_embeds
+            image_features = self.model.encode_images(images)  # type: ignore
+            inputs_embeds = self.get_input_embeddings()(input_ids)  # type: ignore
+            inputs_embeds[vision_token_pos] = image_features[image_masks]  # type: ignore
+
+        return super().forward(  # type: ignore
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            labels=labels,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            cache_position=cache_position
+        )
