@@ -161,7 +161,7 @@ if __name__ == '__main__':
             builtins_print(*args, **kwargs)
 
     builtins.print = custom_print
-    
+
     if is_local_main_process:
         set_logger()
 
