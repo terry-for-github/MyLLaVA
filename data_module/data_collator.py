@@ -33,10 +33,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         if template:
             self.tokenizer.chat_template = template
 
-        assert self.tokenizer.padding_side in ['right', 'left']
-        self.pad_func = ((lambda x, y: torch.cat([x, y]))
-                         if self.tokenizer.padding_side == 'right'
-                         else (lambda x, y: torch.cat([y, x])))
+        assert self.tokenizer.padding_side in ['right']
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id = self.tokenizer.pad_token_id
         self.image_mark_id = self.tokenizer.additional_special_tokens_ids[0]
@@ -101,13 +98,9 @@ class DataCollatorForSingleImageAtFirstDialog:
             length = torch.sum(input_dict['attention_mask'][i] == 1).item()
             if length < self.tokenizer.model_max_length:
                 continue
+            assert length == self.tokenizer.model_max_length
             drop_num += 1
-            input_ids = input_dict['input_ids'][i]
-            attention_mask = input_dict['attention_mask'][i]
-            assistent_mask = input_dict['assistant_masks'][i]
-
-            input_ids[input_ids == self.image_mark_id] = self.pad_token_id
-            attention_mask[attention_mask == 1] = 0
-            assistent_mask[assistent_mask == 1] = 0
+            input_dict['attention_mask'][i][:] = 0
+            input_dict['assistant_masks'][i][:] = 0
         if drop_num > 0:
             print(f'Dropped {drop_num} samples exceed max_length')

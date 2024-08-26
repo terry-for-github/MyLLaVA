@@ -136,11 +136,10 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
 
     def __getitem__(self, idx: int):
         data_dict = self.list_data_dict[idx]
-        image_path = data_dict['image']
-        data_dict['image'] = self.image_loader(image_path)
         data_dict['image_mask'] = (
             torch.zeros(self.vision_token_num, dtype=torch.bool)
-            if image_path is None else
+            if data_dict['image'] is None else
             torch.ones(self.vision_token_num, dtype=torch.bool)
         )
+        data_dict['image'] = self.image_loader(data_dict['image'])
         return data_dict
