@@ -17,19 +17,23 @@ class Llama3Template(BaseTemplate):
     def get_template(self):
         return (
             f"{{% set loop_messages = messages %}}"
-            f"{{% for message in loop_messages %}}"
-            f"{{% if loop.index0 == 0 %}}"
-            f"{{{{ bos_token }}}}"
-            f"{{{{ '<|start_header_id|>' + '{self.sys_role}' + '<|end_header_id|>\n' }}}}"
-            f"{{{{ '{self.system_prompt}' + eos_token }}}}"
+            f"{{% if messages[0]['role'] == '{self.sys_role}' %}}"
+            f"{{% set system_message = messages[0]['content']|trim %}}"
+            f"{{% set messages = messages[1:] %}}"
+            f"{{% else %}}"
+            f"{{% set system_message = '' %}}"
             f"{{% endif %}}"
+            f"{{{{ '<|begin_of_text|>' }}}}"
+            f"{{{{ '<|start_header_id|>' + '{self.sys_role}' + '<|end_header_id|>\n' }}}}"
+            f"{{{{ system_message + '<|eot_id|>' }}}}"
+            f"{{% for message in loop_messages %}}"
             f"{{% if loop.index0 % 2 == 0 %}}"
             f"{{{{ '\n<|start_header_id|>' + '{self.human_role}' + '<|end_header_id|>\n' }}}}"
-            f"{{{{ message['content']|trim + eos_token }}}}"
+            f"{{{{ message['content']|trim + '<|eot_id|>' }}}}"
             f"{{% else %}}"
             f"{{{{ '\n<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n' }}}}"
             f"{{% generation %}}"
-            f"{{{{ message['content']|trim + eos_token }}}}"
+            f"{{{{ message['content']|trim + '<|eot_id|>' }}}}"
             f"{{% endgeneration %}}"
             f"{{% endif %}}"
             f"{{% endfor %}}"
@@ -37,3 +41,6 @@ class Llama3Template(BaseTemplate):
             f"{{{{ '\n<|start_header_id|>' + '{self.gpt_role}' + '<|end_header_id|>\n'}}}}"
             f"{{% endif %}}"
         )
+
+    def add_default_system_message(self, messages):
+        return [{'role': self.sys_role, 'content': self.system_prompt}] + messages

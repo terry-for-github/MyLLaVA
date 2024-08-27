@@ -12,3 +12,6 @@ class PlainTemplate(BaseTemplate):
             "{{ messages[1]['content']|trim + eos_token }}"
             "{% endgeneration %}"
         )
+
+    def add_default_system_message(self, messages):
+        return messages

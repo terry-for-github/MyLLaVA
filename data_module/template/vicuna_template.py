@@ -5,6 +5,7 @@ from .base_template import BaseTemplate
 
 @dataclass(frozen=True)
 class VicunaTemplate(BaseTemplate):
+    sys_role: str = field(default="SYSTEM")
     human_role: str = field(default="USER")
     gpt_role: str = field(default="ASSISTANT")
     system_prompt: str = field(default=(
@@ -15,20 +16,27 @@ class VicunaTemplate(BaseTemplate):
     def get_template(self):
         return (
             f"{{% set loop_messages = messages %}}"
-            f"{{% for message in loop_messages %}}"
-            f"{{% if loop.index0 == 0 %}}"
-            f"{{{{ bos_token + '{self.system_prompt}' }}}}"
-            f"{{% endif %}}"
-            f"{{% if loop.index0 % 2 == 0 %}}"
-            f"{{{{ '\n\n{self.human_role}: ' + message['content']|trim }}}}"
+            f"{{% if messages[0]['role'] == '{self.sys_role}' %}}"
+            f"{{% set system_message = messages[0]['content']|trim %}}"
+            f"{{% set messages = messages[1:] %}}"
             f"{{% else %}}"
-            f"{{{{ '\n\n{self.gpt_role}: ' }}}}"
+            f"{{% set system_message = '' %}}"
+            f"{{% endif %}}"
+            f"{{{{ '<s>' + system_message + '</s>' }}}}"
+            f"{{% for message in loop_messages %}}"
+            f"{{% if loop.index0 % 2 == 0 %}}"
+            f"{{{{ '\n{self.human_role}: ' + message['content']|trim }}}}"
+            f"{{% else %}}"
+            f"{{{{ '\n{self.gpt_role}: ' }}}}"
             f"{{% generation %}}"
-            f"{{{{ message['content']|trim + eos_token }}}}"
+            f"{{{{ message['content']|trim + '</s>' }}}}"
             f"{{% endgeneration %}}"
             f"{{% endif %}}"
             f"{{% endfor %}}"
             f"{{% if add_generation_prompt %}}"
-            f"{{{{ '{self.gpt_role}' }}}}"
+            f"{{{{ '\n{self.gpt_role}: ' }}}}"
             f"{{% endif %}}"
         )
+
+    def add_default_system_message(self, messages):
+        return [{'role': self.sys_role, 'content': self.system_prompt}] + messages

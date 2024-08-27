@@ -12,3 +12,7 @@ class BaseTemplate(ABC):
     @abstractmethod
     def get_template(self) -> str:
         pass
+
+    @abstractmethod
+    def add_default_system_message(self, messages):
+        pass
