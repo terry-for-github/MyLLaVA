@@ -75,9 +75,11 @@ def get_tokenizer(model_args: ModelArguments):
         model_max_length=model_args.model_max_length,
         padding_side="right"
     )
-    if 'llama-3' in model_args.model_name_or_path.lower():
-        # <|finetune_right_pad_id|> or <|reserved_special_token_2|>
-        tokenizer.pad_token_id = 128004  # type: ignore
+    if (
+        'llama-3' in model_args.model_name_or_path.lower() or
+        'llama3' in model_args.model_name_or_path.lower()
+    ):
+        tokenizer.pad_token = "<|reserved_special_token_1|>"
     return tokenizer
 
 
