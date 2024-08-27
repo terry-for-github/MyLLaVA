@@ -6,10 +6,10 @@ from PIL import Image
 import torch
 from transformers import AutoImageProcessor, LayoutLMv3ImageProcessor
 
-from constants import CACHE_DIR, IMAGE_MEAN, IMAGE_SIZE
+from ..constants import CACHE_DIR, IMAGE_MEAN, IMAGE_SIZE
 
 
-class ImageLoader:
+class SingleTowersImageLoader:
     def __init__(self, image_folder: str,
                  vision_model_name: str,
                  image_process_mode: str):
@@ -69,7 +69,7 @@ class MultiTowersImageLoader:
                  vision_model_list: List[str],
                  image_process_mode: str):
         self.image_loader_list = [
-            ImageLoader(image_folder, model_name, image_process_mode)
+            SingleTowersImageLoader(image_folder, model_name, image_process_mode)
             for model_name in vision_model_list
         ]
         self.image_sizes = [IMAGE_SIZE[model_name] for model_name in vision_model_list]

@@ -49,10 +49,10 @@ fi
 command="accelerate launch"
 
 if [ $# -eq 0 ]; then
-    command+=" --config_file=config/single.yaml"
+    command+=" --config_file=configs/single.yaml"
     PER_BATCH_SIZE=$(($BATCH_SIZE / 8 / $ACC_NUM))
 elif [ $# -eq 2 ]; then
-    command+=" --config_file=config/double.yaml"
+    command+=" --config_file=configs/double.yaml"
     command+=" --machine_rank=$1"
     command+=" --main_process_ip=$2"
     PER_BATCH_SIZE=$(($BATCH_SIZE / 16 / $ACC_NUM))
@@ -61,7 +61,7 @@ else
     exit 1
 fi
 
-command+=" train.py"
+command+=" main.py"
 command+=" --deepspeed=$ZERO_JSON"
 command+=" --output_dir=./checkpoints/$MODEL_NAME"
 command+=" --report_to=wandb"
@@ -112,6 +112,7 @@ command+=" --group_by_length=false"
 command+=" --gradient_checkpointing=true"
 command+=' --gradient_checkpointing_kwargs={\"use_reentrant\":false}'
 command+=" --ddp_backend=nccl"
+command+=" --skip_save_after_last_step=true"
 
 command+=" --bf16=true"
 command+=" --tf32=true"

@@ -10,6 +10,9 @@ class TrainingArguments(transformers.TrainingArguments):
         field(default="flash_attention_2", metadata={
             "help": "Type of attention implementation to use: eager, sdpa, flash_attention_2"
         })
+    skip_save_after_last_step: bool = field(default=False, metadata={
+        "help": "Whether to skip saving a checkpoint after the last training step."
+    })
 
     # quantization
     double_quant: bool = field(default=True, metadata={

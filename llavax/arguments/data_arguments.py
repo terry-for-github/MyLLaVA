@@ -1,13 +1,11 @@
 from dataclasses import asdict, dataclass, field
-from typing import Literal, Optional
+from typing import Literal
 
 
 @dataclass(frozen=True)
 class DataArguments:
     json_path: str = field(metadata={"help": "Path to json data file"})
-    image_folder: Optional[str] = field(default=None, metadata={
-        "help": "Path to image folder"
-    })
+    image_folder: str = field(metadata={"help": "Path to image folder"})
 
     check_dataset: bool = field(default=False, metadata={
         "help": "Check the dataset before training"

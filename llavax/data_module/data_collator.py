@@ -1,4 +1,3 @@
-import os
 import re
 from copy import deepcopy
 from typing import Dict
@@ -6,21 +5,14 @@ from typing import Dict
 import torch
 from transformers import PreTrainedTokenizerBase
 
-from constants import IGNORE_INDEX, IMAGE_MARK
-
-from .template import template_dict
+from ..constants import IGNORE_INDEX, IMAGE_MARK
+from .template import TemplateFactory
 
 
 class DataCollatorForSingleImageAtFirstDialog:
     def __init__(self,
                  tokenizer: PreTrainedTokenizerBase,
                  version: str):
-        # huggingface/tokenizers: The current process just got forked, after parallelism has
-        # already been used. Disabling parallelism to avoid deadlocks...
-        # To disable this warning, you can either:
-        #     - Avoid using `tokenizers` before the fork if possible
-        #     - Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = deepcopy(tokenizer)
         self.version = version
         self._init_from_tokenizer()
@@ -53,7 +45,7 @@ class DataCollatorForSingleImageAtFirstDialog:
                  'vision_token_pos': vision_token_pos,
                  'attention_mask': attention_mask, 'images': images}
         '''
-        template = template_dict[self.version]
+        template = TemplateFactory.create_template(self.version)
         list_image = [data_dict['image'] for data_dict in list_data_dict]
         list_dialog = [template.add_default_system_message(data_dict['dialog'])
                        for data_dict in list_data_dict]

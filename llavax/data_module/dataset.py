@@ -7,9 +7,9 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset
 
-from constants import IMAGE_MARK
+from ..constants import IMAGE_MARK
 
-tqdm_off = os.environ.get('LOCAL_RANK', '-1') not in ['0', '-1']
+_tqdm_off = os.environ.get('LOCAL_RANK', '-1') not in ['0', '-1']
 
 
 class LazySingleImageAtFirstDialogDataset(Dataset):
@@ -63,7 +63,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
             'dialog': [{'role': message[role_key], 'content': message[content_key]}
                        for message in data_dict[dialog_key]],
             'image': data_dict[image_key] if image_key in data_dict else None
-        } for data_dict in tqdm(self.list_data_dict, disable=tqdm_off)]
+        } for data_dict in tqdm(self.list_data_dict, disable=_tqdm_off)]
         return self
 
     def _check_dataset(self):
@@ -85,7 +85,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         _gpt = self.data_args.gpt_key
 
         print('Start checking the dataset.')
-        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+        for data_dict in tqdm(self.list_data_dict, disable=_tqdm_off):
             has_image = (data_dict['image'] is not None)
             if is_plain_dataset:
                 assert has_image
@@ -110,7 +110,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         # So we can replace image_mark with vision_token_num*image_mark before it turns to
         # input_ids. Then we can easily replace input_embeds with image_feature in forward()
         print('Duplicate image_mark in all dialogs.')
-        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+        for data_dict in tqdm(self.list_data_dict, disable=_tqdm_off):
             first_message = data_dict['dialog'][0]
             first_message['content'] = first_message['content'].replace(
                 self.image_mark, self.vision_token_num*IMAGE_MARK
@@ -122,7 +122,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         print('Use group_by_lengths == True Calculate the lengths of all dialogs.')
         self._lengths = []
         pattern = " \n\t\r!\"#$%&'()*+,-./:;=?@[]^_`{}~"
-        for data_dict in tqdm(self.list_data_dict, disable=tqdm_off):
+        for data_dict in tqdm(self.list_data_dict, disable=_tqdm_off):
             dialog = data_dict['dialog']
             length = 0
             for message in dialog:

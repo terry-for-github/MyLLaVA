@@ -26,7 +26,7 @@ class Llama3Template(BaseTemplate):
             f"{{{{ '<|begin_of_text|>' }}}}"
             f"{{{{ '<|start_header_id|>' + '{self.sys_role}' + '<|end_header_id|>\n' }}}}"
             f"{{{{ system_message + '<|eot_id|>' }}}}"
-            f"{{% for message in loop_messages %}}"
+            f"{{% for message in messages %}}"
             f"{{% if loop.index0 % 2 == 0 %}}"
             f"{{{{ '\n<|start_header_id|>' + '{self.human_role}' + '<|end_header_id|>\n' }}}}"
             f"{{{{ message['content']|trim + '<|eot_id|>' }}}}"

@@ -1,12 +1,13 @@
-# Llama define this
+import os
 from enum import Enum, auto
 from transformers import CLIPVisionModel, LayoutLMv3Model, Dinov2Model, SiglipVisionModel
 from transformers import CLIPVisionConfig, LayoutLMv3Config, Dinov2Config, SiglipVisionConfig
 from dataclasses import dataclass
 
+# Llama define this
 IGNORE_INDEX = -100
 
-CACHE_DIR = None
+CACHE_DIR = getattr(os.environ, 'LLAVA_CACHE', None)
 
 IMAGE_MARK = '<image>'
 

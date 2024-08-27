@@ -7,31 +7,23 @@ from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.cache_utils import Cache
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from .vision_tower.builder import build_vision_tower
-from .mm_adapter.builder import build_mm_adapter
+from . import vision_factory
 
 
 class LlavaMetaConfig:
     def __init__(
         self,
-        vision_tower: Optional[str] = None,
+        vision_tower: Optional[List[str]] = None,
         mm_adapter: Optional[str] = None,
-        mm_vision_select_layer: int = -2,
+        mm_vision_select_layer: Optional[List[int]] = None,
         mm_patch_merge_type: str = 'flat',
         **kwargs
     ):
         super().__init__(**kwargs)
         self.vision_tower = vision_tower
         self.mm_adapter = mm_adapter
-        self.mm_hidden_size = None
         self.mm_vision_select_layer = mm_vision_select_layer
         self.mm_patch_merge_type = mm_patch_merge_type
-
-    def update(self, model_args):
-        self.vision_tower = model_args.vision_tower
-        self.mm_adapter = model_args.mm_adapter
-        self.mm_vision_select_layer = model_args.mm_vision_select_layer
-        self.mm_patch_merge_type = model_args.mm_patch_merge_type
 
 
 class LlavaMetaModel:
@@ -47,11 +39,11 @@ class LlavaMetaModel:
         #     )
         assert config.vision_tower is not None, 'Vision tower is not specified.'
         assert config.mm_adapter is not None, 'Multimodal adapter is not specified.'
-        self.vision_tower = build_vision_tower(config)
-        config.mm_hidden_size = self.vision_tower.hidden_size
-        self.mm_adapter = build_mm_adapter(config)
+        self.vision_tower = vision_factory.create_vision_tower(config)
+        vision_hidden_size = self.vision_tower.hidden_size
+        self.mm_adapter = vision_factory.create_mm_adapter(config, vision_hidden_size)
 
-    def init_vision_modules(self, pretrained_mm_adapter_path: Optional[str], **kwargs):
+    def init_vision_modules(self, pretrained_mm_adapter_path: Optional[str] = None, **kwargs):
         # Load vision_tower
         self.vision_tower.load(**kwargs)
         # Load mm_adapter
@@ -94,7 +86,7 @@ class LlavaMetaModel:
 
 
 class LlavaMetaForCausalLM:
-    _keys_to_ignore_on_load_missing = ['vision_tower', 'mm_adapter']
+    _keys_to_ignore_on_load_missing = ['vision_tower']
 
     def get_vision_tower(self):
         return self.model.vision_tower  # type: ignore

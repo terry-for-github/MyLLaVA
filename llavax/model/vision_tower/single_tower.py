@@ -1,6 +1,6 @@
 import torch
 
-from constants import (
+from llavax.constants import (
     CACHE_DIR, MODEL_CONFIG, MODEL_CLASS, HAS_CLS_TOKEN, HIDDEN_SIZE, NUM_PATCHES
 )
 
