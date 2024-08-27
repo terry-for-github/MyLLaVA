@@ -22,16 +22,13 @@ class DataCollatorForSingleImageAtFirstDialog:
         #     - Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = deepcopy(tokenizer)
-        self.is_plain = version == 'plain'
-        self._init_from_tokenizer(version)
+        self.version = version
+        self._init_from_tokenizer()
 
-    def _init_from_tokenizer(self, version):
+    def _init_from_tokenizer(self):
         self.tokenizer.add_special_tokens({
             'additional_special_tokens': [IMAGE_MARK]  # type: ignore
         })
-        template = template_dict[version].get_template()
-        if template:
-            self.tokenizer.chat_template = template
 
         assert self.tokenizer.padding_side in ['right']
         assert self.tokenizer.pad_token_id is not None
@@ -39,7 +36,7 @@ class DataCollatorForSingleImageAtFirstDialog:
         self.image_mark_id = self.tokenizer.additional_special_tokens_ids[0]
 
     def _deal_with_plain_template(self, list_dialog):
-        if not self.is_plain:
+        if self.version == 'plain':
             return
         for dialog in list_dialog:
             result = re.findall(rf'{IMAGE_MARK}', dialog[0]['content'])
@@ -56,12 +53,15 @@ class DataCollatorForSingleImageAtFirstDialog:
                  'vision_token_pos': vision_token_pos,
                  'attention_mask': attention_mask, 'images': images}
         '''
+        template = template_dict[self.version]
         list_image = [data_dict['image'] for data_dict in list_data_dict]
-        list_dialog = [data_dict['dialog'] for data_dict in list_data_dict]
+        list_dialog = [template.add_default_system_message(data_dict['dialog'])
+                       for data_dict in list_data_dict]
         list_image_mask = [data_dict['image_mask'] for data_dict in list_data_dict]
         self._deal_with_plain_template(list_dialog)
         input_dict: Dict[str, torch.Tensor] = self.tokenizer.apply_chat_template(
             list_dialog,
+            chat_template=template.get_template(),
             tokenize=True,
             truncation=True,
             padding='longest',  # type: ignore

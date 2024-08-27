@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Dict, List
 
 
 @dataclass(frozen=True)
@@ -14,5 +15,6 @@ class BaseTemplate(ABC):
         pass
 
     @abstractmethod
-    def add_default_system_message(self, messages):
+    def add_default_system_message(self, messages: List[Dict[str, str]]
+                                   ) -> List[Dict[str, str]]:
         pass
