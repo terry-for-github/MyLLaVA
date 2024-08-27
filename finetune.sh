@@ -1,0 +1,1 @@
+./train.sh finetune $1 $2

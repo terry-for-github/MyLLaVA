@@ -1,0 +1,1 @@
+./train.sh pretrain $1 $2
