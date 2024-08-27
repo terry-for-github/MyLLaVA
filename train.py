@@ -103,8 +103,8 @@ def main():
     print('[DEBUG]', 1, '===================================================================')
 
     tokenizer = get_tokenizer(model_args)
-
-    causal_lm = get_causal_lm(model_args, training_args)
+    assert tokenizer.pad_token_id is not None
+    causal_lm = get_causal_lm(model_args, training_args, tokenizer.pad_token_id)
     set_ignore_when_save(causal_lm, model_args)
 
     num_vision_token = get_num_vision_token(causal_lm)

@@ -1,5 +1,6 @@
-import torch
 import os
+
+import torch
 from transformers import BitsAndBytesConfig
 
 from arguments import ModelArguments, TrainingArguments
@@ -43,7 +44,8 @@ def get_compute_dtype(training_args) -> torch.dtype:
 
 
 def get_causal_lm(model_args: ModelArguments,
-                  training_args: TrainingArguments
+                  training_args: TrainingArguments,
+                  pad_token_id: int
                   ) -> LlavaLlamaForCausalLM:
     '''Get causal language model.'''
     # compute_dtype in [torch.float16, torch.bfloat16, torch.float32]
@@ -59,6 +61,7 @@ def get_causal_lm(model_args: ModelArguments,
     )  # type: ignore
     if os.environ.get('LLAVA_DEBUG', None) is not None:
         llava_config.num_hidden_layers = 4
+    llava_config.pad_token_id = pad_token_id
     LlavaLlamaConfig.model_type = 'llava_llama'
 
     # We are loading a model without vision tower. (LLM only)
