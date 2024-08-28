@@ -30,7 +30,7 @@ if [ $is_pretrain -eq 1 ]; then
     MODEL_NAME=${MODEL_NAME}-pretrain
     JSON_PATH=data/blip_laion_cc_sbu_558k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Pretrain/images
-    ZERO_JSON=config/zero2.json
+    ZERO_JSON=configs/zero2.json
     VERSION=plain
     TUNE_LLM=false
     IS_PLAIN=true
@@ -39,7 +39,7 @@ else
     MM_ADAPTER_PATH=checkpoints/llava-llama3.1-8b-mlp2x-double-pretrain/model.safetensors
     JSON_PATH=data/llava_v1_5_mix665k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Finetune
-    ZERO_JSON=config/zero3.json
+    ZERO_JSON=configs/zero3.json
     TUNE_LLM=true
     IS_PLAIN=false
     BATCH_SIZE=128
