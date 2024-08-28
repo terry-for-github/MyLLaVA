@@ -4,43 +4,50 @@ import os
 from llavax.train.train import build_and_train
 
 
-def set_logger(is_main_process: bool):
-    if not is_main_process:
-        return
+def config_logger():
     import logging
+    import glob
     from datetime import datetime
     from transformers import logging as transformers_logging
     from deepspeed import logger as deepspeed_logger
+    rank = os.environ.get('RANK', '-1')
+
+    def _add_file_handler(logger: logging.Logger, log_dir: str, level=logging.INFO):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        level_name = logging.getLevelName(level)
+        log_filename = os.path.join(log_dir, f'{logger.name}_{level_name}_{rank}.log')
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     transformers_logging.set_verbosity_info()
+    transformers_logger = logging.getLogger('transformers')
     deepspeed_logger.setLevel(logging.INFO)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%m%d_%H%M")
     log_dir = f"logs/log_{timestamp}"
     os.makedirs(log_dir, exist_ok=True)
 
-    transformers_logger = logging.getLogger('transformers')
-    for handler in transformers_logger.handlers[:]:
+    for handler in transformers_logger.handlers:
         transformers_logger.removeHandler(handler)
-    for handlder in deepspeed_logger.handlers[:]:
+    for handlder in deepspeed_logger.handlers:
         deepspeed_logger.removeHandler(handlder)
     transformers_logger.propagate = False
     deepspeed_logger.propagate = False
 
-    info_handler = logging.FileHandler(os.path.join(log_dir, 'info.log'))
-    info_handler.setLevel(logging.INFO)
+    _add_file_handler(transformers_logger, log_dir, level=logging.INFO)
+    _add_file_handler(transformers_logger, log_dir, level=logging.WARNING)
+    _add_file_handler(deepspeed_logger, log_dir, level=logging.INFO)
+    _add_file_handler(deepspeed_logger, log_dir, level=logging.WARNING)
 
-    warning_handler = logging.FileHandler(os.path.join(log_dir, 'warn.log'))
-    warning_handler.setLevel(logging.WARNING)
+    if rank in ['0', '-1']:
+        import shutil
+        log_files = sorted(glob.glob(os.path.join('logs', "log_*")), key=os.path.getctime)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    info_handler.setFormatter(formatter)
-    warning_handler.setFormatter(formatter)
-
-    transformers_logger.addHandler(info_handler)
-    transformers_logger.addHandler(warning_handler)
-    deepspeed_logger.addHandler(info_handler)
-    deepspeed_logger.addHandler(warning_handler)
+        while len(log_files) > 10:
+            oldest_log = log_files.pop(0)
+            shutil.rmtree(oldest_log)
 
 
 def set_builtin_print(is_local_main_process: bool):
@@ -51,6 +58,8 @@ def set_builtin_print(is_local_main_process: bool):
     else:
         debug_level = int(os.environ['LLAVA_DEBUG'])
     assert debug_level >= 0
+
+    rank = os.environ.get('RANK', '-1')
 
     def custom_print(*args, rank0_only=True, **kwargs):
         if len(args) == 0:
@@ -64,7 +73,7 @@ def set_builtin_print(is_local_main_process: bool):
             return
         if not is_local_main_process and rank0_only:
             return
-        builtins_print(*args, **kwargs)
+        builtins_print(f'[RANK{rank}]', *args, **kwargs)
 
     builtins.print = custom_print
 
@@ -76,6 +85,6 @@ if __name__ == '__main__':
 
     set_builtin_print(is_local_main_process)
 
-    set_logger(is_main_process)
+    config_logger()
 
     build_and_train()
