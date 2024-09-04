@@ -22,7 +22,7 @@ MODEL_NAME=llava-test
 # VERSION=vicuna
 LLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
 # LLM_MODEL=meta-llama/Meta-Llama-3.1-8B-Instruct
-VERSION=llama3
+STRATEGY=llama3
 
 ACC_NUM=4
 
@@ -31,7 +31,7 @@ if [ $is_pretrain -eq 1 ]; then
     JSON_PATH=json/blip_laion_cc_sbu_558k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Pretrain/images
     ZERO_JSON=configs/zero2.json
-    VERSION=plain
+    STRATEGY=plain
     TUNE_LLM=false
     IS_PLAIN=true
     BATCH_SIZE=256
@@ -69,7 +69,7 @@ command+=" --run_name=$MODEL_NAME"
 
 # model params
 command+=" --model_name_or_path=$LLM_MODEL"
-command+=" --version=$VERSION"
+command+=" --strategy=$STRATEGY"
 
 # tuning params
 command+=" --tune_backbone=$TUNE_LLM"

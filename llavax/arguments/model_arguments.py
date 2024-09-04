@@ -7,8 +7,8 @@ class ModelArguments:
     model_name_or_path: str = field(metadata={
         "help": "Path to pretrained model or model identifier from huggingface.co/models"
     })
-    version: str = field(metadata={
-        "help": "Version of the training mode"
+    strategy: str = field(metadata={
+        "help": "strategy for input template."
     })
 
     tune_backbone: bool = field(metadata={
