@@ -1,13 +1,11 @@
-from typing import List
-
 import torch
 
-from .base_tower import BaseVisionTower
+from .base_tower import BaseVisionTower, load_decorator
 from .single_tower import SingleVisionTower
 
 
 class MultiVisionTower(BaseVisionTower):
-    def __init__(self, encoder_name: List[str], select_layer: List[int]):
+    def __init__(self, encoder_name: list[str], select_layer: list[int]):
         super().__init__(encoder_name, select_layer)
         self.tower_list = [
             SingleVisionTower(name, layer)
@@ -19,21 +17,10 @@ class MultiVisionTower(BaseVisionTower):
         for i, num_patches in enumerate(patch_list):
             self.prefix_list.append(self.prefix_list[i] + num_patches)
 
-    @BaseVisionTower.load_decorator
+    @load_decorator
     def load(self, **kwargs):
         for tower in self.tower_list:
             tower.load(**kwargs)
-
-    @property
-    def is_loaded(self):
-        for tower in self.tower_list:
-            if not tower.is_loaded:
-                return False
-        return True
-
-    @is_loaded.setter
-    def is_loaded(self, value):
-        assert value == self.is_loaded
 
     @torch.no_grad()
     def forward(self, images):
@@ -46,19 +33,7 @@ class MultiVisionTower(BaseVisionTower):
         return feature_list
 
     @property
-    def dummy_feature(self):
-        return [tower.dummy_feature for tower in self.tower_list]
-
-    @property
-    def dtype(self):
-        return self.tower_list[0].dtype
-
-    @property
-    def device(self):
-        return self.tower_list[0].device
-
-    @property
-    def hidden_size(self) -> List[int]:
+    def hidden_size(self) -> list[int]:
         return [tower.hidden_size for tower in self.tower_list]
 
     @property

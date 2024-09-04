@@ -1,7 +1,9 @@
 import builtins
 import os
 
-from llavax.train.train import build_and_train
+import transformers
+from llavax.arguments import ModelArguments, DataArguments, TrainingArguments
+from llavax.train import build_and_train
 
 
 def config_logger():
@@ -87,4 +89,13 @@ if __name__ == '__main__':
 
     config_logger()
 
-    build_and_train()
+    parser = transformers.HfArgumentParser(
+        (ModelArguments, DataArguments, TrainingArguments)  # type: ignore
+    )
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    print('[DEBUG]', 1, '===================================================================')
+    print('[DEBUG]', 1, model_args)
+    print('[DEBUG]', 1, data_args)
+    print('[DEBUG]', 1, training_args)
+    print('[DEBUG]', 1, '===================================================================')
+    build_and_train(model_args, data_args, training_args)

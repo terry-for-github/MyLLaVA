@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 import random
 
 from torch.utils.data import Sampler
@@ -32,7 +32,7 @@ class SkipSaveAfterLastStepCallback(TrainerCallback):
 class LengthGroupedRandomSampler(Sampler):
     def __init__(
         self,
-        lengths: List[int],
+        lengths: list[int],
         per_device_batch_size: int,
         world_size: int,
         gradient_acc_steps: int
@@ -126,7 +126,7 @@ class LLaVATrainer(Trainer):
     # Finally it will delete all the `checkpoint-xxx` directories.
     def _sorted_checkpoints(
         self, output_dir=None, checkpoint_prefix=PREFIX_CHECKPOINT_DIR, use_mtime=False
-    ) -> List[str]:
+    ) -> list[str]:
         if self.control.should_training_stop and self.skip_save_after_last_step:
             self.args.save_total_limit = 0
         return super()._sorted_checkpoints(output_dir, checkpoint_prefix, use_mtime)
