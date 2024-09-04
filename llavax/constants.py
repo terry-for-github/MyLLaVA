@@ -1,25 +1,28 @@
 import os
+from typing import Type, Optional
+from dataclasses import dataclass
 from enum import Enum, auto
+
 from transformers import CLIPVisionModel, LayoutLMv3Model, Dinov2Model, SiglipVisionModel
 from transformers import CLIPVisionConfig, LayoutLMv3Config, Dinov2Config, SiglipVisionConfig
-from dataclasses import dataclass
+from transformers import PreTrainedModel, PretrainedConfig
 
 # Llama define this
 IGNORE_INDEX = -100
 
-CACHE_DIR = getattr(os.environ, 'LLAVA_CACHE', None)
+CACHE_DIR: Optional[str] = getattr(os.environ, 'LLAVA_CACHE', None)
 
 IMAGE_MARK = '<image>'
 
 
 @dataclass(frozen=True)
 class _MODEL_NAME:
-    CLIP_L_336 = 'openai/clip-vit-large-patch14-336'
-    SIGLIP_SO = 'google/siglip-so400m-patch14-384'
-    SIGLIP_L = 'google/siglip-large-patch16-384'
-    DINOV2_G = 'facebook/dinov2-giant'
-    DINOV2_L = 'facebook/dinov2-large'
-    LAYOUTLMV3_L = 'microsoft/layoutlmv3-large'
+    CLIP_L_336: str = 'openai/clip-vit-large-patch14-336'
+    SIGLIP_SO: str = 'google/siglip-so400m-patch14-384'
+    SIGLIP_L: str = 'google/siglip-large-patch16-384'
+    DINOV2_G: str = 'facebook/dinov2-giant'
+    DINOV2_L: str = 'facebook/dinov2-large'
+    LAYOUTLMV3_L: str = 'microsoft/layoutlmv3-large'
 
 
 class _MODEL_ATTRIBUTE(Enum):
@@ -96,14 +99,30 @@ _MODEL_CONSTANTS = {
     }
 }
 
-IMAGE_SIZE = {k: v[_MODEL_ATTRIBUTE.IMAGE_SIZE] for k, v in _MODEL_CONSTANTS.items()}
-IMAGE_MEAN = {k: v[_MODEL_ATTRIBUTE.IMAGE_MEAN] for k, v in _MODEL_CONSTANTS.items()}
-HIDDEN_SIZE = {k: v[_MODEL_ATTRIBUTE.HIDDEN_SIZE] for k, v in _MODEL_CONSTANTS.items()}
-PATCH_SIZE = {k: v[_MODEL_ATTRIBUTE.PATCH_SIZE] for k, v in _MODEL_CONSTANTS.items()}
-NUM_PATCHES = {k: v[_MODEL_ATTRIBUTE.NUM_PATCHES] for k, v in _MODEL_CONSTANTS.items()}
-HAS_CLS_TOKEN = {k: v[_MODEL_ATTRIBUTE.HAS_CLS_TOKEN] for k, v in _MODEL_CONSTANTS.items()}
-MODEL_CLASS = {k: v[_MODEL_ATTRIBUTE.MODEL_CLASS] for k, v in _MODEL_CONSTANTS.items()}
-MODEL_CONFIG = {k: v[_MODEL_ATTRIBUTE.MODEL_CONFIG] for k, v in _MODEL_CONSTANTS.items()}
+IMAGE_SIZE: dict[str, int] = {
+    k: v[_MODEL_ATTRIBUTE.IMAGE_SIZE] for k, v in _MODEL_CONSTANTS.items()
+}
+IMAGE_MEAN: dict[str, tuple[float, float, float]] = {
+    k: v[_MODEL_ATTRIBUTE.IMAGE_MEAN] for k, v in _MODEL_CONSTANTS.items()
+}
+HIDDEN_SIZE: dict[str, int] = {
+    k: v[_MODEL_ATTRIBUTE.HIDDEN_SIZE] for k, v in _MODEL_CONSTANTS.items()
+}
+PATCH_SIZE: dict[str, int] = {
+    k: v[_MODEL_ATTRIBUTE.PATCH_SIZE] for k, v in _MODEL_CONSTANTS.items()
+}
+NUM_PATCHES: dict[str, int] = {
+    k: v[_MODEL_ATTRIBUTE.NUM_PATCHES] for k, v in _MODEL_CONSTANTS.items()
+}
+HAS_CLS_TOKEN: dict[str, bool] = {
+    k: v[_MODEL_ATTRIBUTE.HAS_CLS_TOKEN] for k, v in _MODEL_CONSTANTS.items()
+}
+MODEL_CLASS: dict[str, Type[PreTrainedModel]] = {
+    k: v[_MODEL_ATTRIBUTE.MODEL_CLASS] for k, v in _MODEL_CONSTANTS.items()
+}
+MODEL_CONFIG: dict[str, Type[PretrainedConfig]] = {
+    k: v[_MODEL_ATTRIBUTE.MODEL_CONFIG] for k, v in _MODEL_CONSTANTS.items()
+}
 
 
 __all__ = ['IGNORE_INDEX', 'CACHE_DIR', 'IMAGE_MARK',
@@ -121,7 +140,7 @@ if __name__ == '__main__':
     print(config)
     processor = AutoImageProcessor.from_pretrained(model_name)
     print(processor)
-    model = model_config.from_pretrained(model_name, torch_dtype='float16', device_map='cuda')
+    model = model_class.from_pretrained(model_name, torch_dtype='float16', device_map='cuda')
     dummy_image = torch.randn(1, 3, 224, 224, device='cuda', dtype=torch.float16)
     output = model(pixel_values=dummy_image, output_hidden_states=True)
     print(output.last_hidden_state.shape)
