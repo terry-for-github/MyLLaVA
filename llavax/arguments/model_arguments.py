@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, field
-from typing import List, Optional
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ class ModelArguments:
         "help": "Whether to tune the multimodal adapter of the model"
     })
 
-    vision_tower: List[str] = field(default_factory=list, metadata={
+    vision_tower: list[str] = field(default_factory=list, metadata={
         "help": "Name of the vision tower"
     })
     mm_adapter: str = field(default='linear', metadata={
@@ -43,21 +43,21 @@ class ModelArguments:
     mm_use_im_patch_token: bool = field(default=True, metadata={
         "help": "Whether to use image patch tokens in multimodal adapter"
     })
-    mm_patch_merge_type: str = field(default='flat', metadata={
+    patch_merge_type: str = field(default='flat', metadata={
         "help": "Type of merging image patch tokens"
     })
-    mm_vision_select_layer: List[int] = field(default_factory=list, metadata={
+    vision_select_layer: list[int] = field(default_factory=list, metadata={
         "help": "Layer of the vision encoder to use for multimodal adapter"
     })
 
-    m_patch_one_token: List[int] = field(default_factory=list, metadata={
+    m_patch_one_token: list[int] = field(default_factory=list, metadata={
         "help": "List of number of patches combined into one token for each expert"
     })
 
     def __post_init__(self):
-        assert self.mm_patch_merge_type in ["flat", "unpad"], \
-            f"mm_patch_merge_type should be one of `flat` or `unpad`, got " \
-            f"{self.mm_patch_merge_type}"
+        assert self.patch_merge_type in ["flat", "unpad"], \
+            f"patch_merge_type should be one of `flat` or `unpad`, got " \
+            f"{self.patch_merge_type}"
         assert not self.tune_vision_tower, "Tuning vision tower is not supported yet"
 
     def __str__(self):
