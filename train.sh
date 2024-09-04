@@ -19,7 +19,7 @@ export OMP_NUM_THREADS=1
 MODEL_NAME=llava-test
 
 # LLM_MODEL=lmsys/vicuna-7b-v1.5
-# VERSION=vicuna
+# STRATEGY=vicuna
 LLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
 # LLM_MODEL=meta-llama/Meta-Llama-3.1-8B-Instruct
 STRATEGY=llama3
@@ -78,6 +78,7 @@ command+=" --tune_mm_adapter=true"
 
 # vision module params
 command+=" --vision_tower=openai/clip-vit-large-patch14-336"
+command+=" --vision_select_layer=-2"
 command+=" --mm_adapter=mlp2x_gelu"
 if [ $is_pretrain -eq 0 ]; then
     command+=" --pretrained_mm_adapter_path=$MM_ADAPTER_PATH"
@@ -86,7 +87,6 @@ fi
 # vision params
 command+=" --mm_use_im_start_end=false"
 command+=" --mm_use_im_patch_token=false"
-command+=" --mm_vision_select_layer=-2"
 # command+=" --m_patch_one_token 1"
 
 # data params
