@@ -28,7 +28,7 @@ ACC_NUM=4
 
 if [ $is_pretrain -eq 1 ]; then
     MODEL_NAME=${MODEL_NAME}-pretrain
-    JSON_PATH=data/blip_laion_cc_sbu_558k.json
+    JSON_PATH=json/blip_laion_cc_sbu_558k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Pretrain/images
     ZERO_JSON=configs/zero2.json
     VERSION=plain
@@ -37,7 +37,7 @@ if [ $is_pretrain -eq 1 ]; then
     BATCH_SIZE=256
 else
     MM_ADAPTER_PATH=checkpoints/llava-llama3.1-8b-mlp2x-double-pretrain/model.safetensors
-    JSON_PATH=data/llava_v1_5_mix665k.json
+    JSON_PATH=json/llava_v1_5_mix665k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Finetune
     ZERO_JSON=configs/zero3.json
     TUNE_LLM=true
