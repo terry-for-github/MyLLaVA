@@ -43,12 +43,16 @@ class DataArguments:
         "help": "Key for content"
     })
 
-    human_key: str = field(default="human", metadata={
-        "help": "Key for human"
+    user_key: str = field(default="user", metadata={
+        "help": "Key for user"
     })
 
-    gpt_key: str = field(default="gpt", metadata={
-        "help": "Key for gpt"
+    assistant_key: str = field(default="assistant", metadata={
+        "help": "Key for assistant"
+    })
+
+    system_key: str = field(default="system", metadata={
+        "help": "Key for system"
     })
 
     def __str__(self):

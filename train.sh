@@ -92,6 +92,12 @@ command+=" --mm_vision_select_layer=-2"
 # data params
 command+=" --json_path=$JSON_PATH"
 command+=" --image_folder=$IMAGE_FOLDER"
+command+=" --dialog_key=conversations"
+command+=" --image_key=image"
+command+=" --role_key=from"
+command+=" --content_key=value"
+command+=" --user_key=human"
+command+=" --assistant_key=gpt"
 command+=" --model_max_length=2048"
 if [ $is_pretrain -eq 1 ]; then
     command+=" --image_process_mode=no"
