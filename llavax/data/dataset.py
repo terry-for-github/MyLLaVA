@@ -88,8 +88,8 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         print(f'Keep only "{_dialog}" and "{_image}" columns.')
         # If no 'image' column, set it to None
         self.list_data_dict = [{
-            'dialog': [{'role': 'user' if message[_role] == _user else 'assistant',
-                        'content': message[_content].replace(self.image_mark, IMAGE_MARK)}
+            'dialog': [dict(role='user' if message[_role] == _user else 'assistant',
+                            content=message[_content].replace(self.image_mark, IMAGE_MARK))
                        for message in data_dict[_dialog]],
             'image': data_dict[_image] if _image in data_dict else None
         } for data_dict in tqdm(self.list_data_dict, disable=_tqdm_off)]
