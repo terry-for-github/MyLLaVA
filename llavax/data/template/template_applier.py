@@ -25,24 +25,23 @@ class TemplateApplier:
         self.tokenizer = deepcopy(tokenizer)
         self.num_vision_token = num_vision_token
         self.is_training = is_training
-        self.template_strategy = self._get_template_strategy(strategy, num_vision_token)
+        self.template_strategy = self._get_template_strategy()
         self.tokenizer.chat_template = self.template_strategy.get_chat_template()
         assert self.tokenizer.padding_side == 'right'
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id = self.tokenizer.pad_token_id
 
-    def _get_template_strategy(
-        self,
-        strategy: str,
-        num_vision_token: int
-    ) -> TemplateStrategy:
-        if strategy == 'plain':
+    def _get_template_strategy(self) -> TemplateStrategy:
+        if self.strategy == 'plain':
             assert self.is_training
-            return PlainStrategy(num_vision_token, self.tokenizer.pad_token)
-        elif strategy == 'vicuna':
-            return VicunaStrategy(num_vision_token, self.tokenizer.pad_token)
-        elif strategy == 'llama3':
-            return Llama3Strategy(num_vision_token, self.tokenizer.pad_token)
+            return PlainStrategy(self.num_vision_token, self.tokenizer.pad_token)
+        elif self.strategy == 'vicuna':
+            return VicunaStrategy(self.num_vision_token, self.tokenizer.pad_token)
+        elif self.strategy == 'llama3':
+            return Llama3Strategy(self.num_vision_token, self.tokenizer.pad_token)
+        else:
+            raise ValueError(f'Unknown strategy: {self.strategy}')
+
         else:
             raise ValueError(f'Unknown strategy: {strategy}')
 
