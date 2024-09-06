@@ -1,3 +1,4 @@
+from typing import Optional
 from .template_strategy import TemplateStrategy
 
 from ...constants import IMAGE_MARK
@@ -42,7 +43,7 @@ class VicunaStrategy(TemplateStrategy):
         return 'ASSISTANT'
 
     @property
-    def system_prompt(self) -> str:
+    def system_prompt(self) -> Optional[str]:
         return (
             "A chat between a curious user and an artificial intelligence assistant. "
             "The assistant gives helpful, detailed, and polite answers to the user\\'s "

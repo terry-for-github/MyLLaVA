@@ -1,3 +1,4 @@
+from typing import Optional
 from ...constants import IMAGE_MARK
 
 from .template_strategy import TemplateStrategy
@@ -25,8 +26,8 @@ class PlainStrategy(TemplateStrategy):
         return 'assistant'
 
     @property
-    def system_prompt(self) -> str:
-        return ''
+    def system_prompt(self) -> Optional[str]:
+        return None
 
     def _format_content(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
         assert len(messages) == 2 and IMAGE_MARK in messages[0]['content']

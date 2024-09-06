@@ -1,3 +1,4 @@
+from typing import Optional
 from .template_strategy import TemplateStrategy
 
 from ...constants import IMAGE_MARK
@@ -35,8 +36,7 @@ class Llama3Strategy(TemplateStrategy):
         return 'assistant'
 
     @property
-    def system_prompt(self) -> str:
-        '''Not used now.'''
+    def system_prompt(self) -> Optional[str]:
         return (
             "You are a highly intelligent and helpful language and vision AI assistant. "
             "Whenever an image is present in the conversation, very carefully examine it "
