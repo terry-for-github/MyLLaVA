@@ -2,6 +2,8 @@ import os
 from typing import Callable, Optional, Any
 
 import transformers
+import deepspeed
+from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers import PreTrainedTokenizerBase
 import torch
 from torch import Tensor
@@ -62,12 +64,43 @@ def build_image_loader(
         )
 
 
+def _get_num_vision_token(
+    causal_lm: LlavaLlamaForCausalLM,
+    image_loader: BaseImageLoader
+) -> int:
+    '''Get the number of vision tokens.'''
+    image_tensor = image_loader.load_image(None).unsqueeze(0)
+    vision_tower = causal_lm.get_vision_tower()
+    mm_adapter = causal_lm.get_mm_adapter()
+
+    vision_tower_training = vision_tower.training
+    mm_adapter_training = mm_adapter.training
+    vision_tower.eval()
+    mm_adapter.eval()
+
+    image_tensor = image_tensor.to(dtype=vision_tower.dtype, device=vision_tower.device)
+    with deepspeed.zero.GatheredParameters(
+        list(vision_tower.parameters()) + list(mm_adapter.parameters()),
+        enabled=is_deepspeed_zero3_enabled()
+    ):
+        with torch.no_grad():
+            # B x N x C
+            dummy_output = causal_lm.model.encode_images(image_tensor)
+    vision_tower.train(vision_tower_training)
+    mm_adapter.train(mm_adapter_training)
+    return dummy_output.shape[1]
+
+
 def build_template_applier(
     strategy: str,
+    model: LlavaLlamaForCausalLM,
+    image_loader: BaseImageLoader,
     tokenizer: PreTrainedTokenizerBase,
-    num_vision_token: int,
     is_training: bool = True
 ) -> TemplateApplier:
+    print('Getting the number of vision tokens...')
+    num_vision_token = _get_num_vision_token(model, image_loader)
+    print('Building the template applier...')
     return TemplateApplier(
         strategy=strategy,
         tokenizer=tokenizer,

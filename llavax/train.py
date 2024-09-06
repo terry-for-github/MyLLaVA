@@ -2,9 +2,7 @@ import os
 import glob
 
 import torch
-import deepspeed
 from transformers import BitsAndBytesConfig
-from transformers.integrations import is_deepspeed_zero3_enabled
 
 from .llava_trainer import LLaVATrainer
 from .builder import (
@@ -17,35 +15,6 @@ from .builder import (
     build_datacollator,
 )
 from .arguments import ModelArguments, DataArguments, TrainingArguments
-from .data import BaseImageLoader
-from .model import LlavaLlamaForCausalLM
-
-
-def get_num_vision_token(
-    causal_lm: LlavaLlamaForCausalLM,
-    image_loader: BaseImageLoader
-) -> int:
-    '''Get the number of vision tokens.'''
-    image_tensor = image_loader(None).unsqueeze(0)
-    vision_tower = causal_lm.get_vision_tower()
-    mm_adapter = causal_lm.get_mm_adapter()
-
-    vision_tower_training = vision_tower.training
-    mm_adapter_training = mm_adapter.training
-    vision_tower.eval()
-    mm_adapter.eval()
-
-    image_tensor = image_tensor.to(dtype=vision_tower.dtype, device=vision_tower.device)
-    with deepspeed.zero.GatheredParameters(
-        list(vision_tower.parameters()) + list(mm_adapter.parameters()),
-        enabled=is_deepspeed_zero3_enabled()
-    ):
-        with torch.no_grad():
-            # B x N x C
-            dummy_output = causal_lm.model.encode_images(image_tensor)
-    vision_tower.train(vision_tower_training)
-    mm_adapter.train(mm_adapter_training)
-    return dummy_output.shape[1]
 
 
 def get_bnb_args(training_args: TrainingArguments, compute_dtype: torch.dtype) -> dict:
@@ -121,14 +90,12 @@ def build_and_train(
         image_process_mode=data_args.image_process_mode
     )
 
-    print('Getting the number of vision tokens...')
-    num_vision_token = get_num_vision_token(causal_lm, image_loader)
-
     print('Building the template applier...')
     template_applier = build_template_applier(
         strategy=model_args.strategy,
+        model=causal_lm,
+        image_loader=image_loader,
         tokenizer=tokenizer,
-        num_vision_token=num_vision_token,
         is_training=True
     )
 
