@@ -168,7 +168,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
             if image_path is None else
             torch.ones(self.num_vision_token, dtype=torch.bool)
         )
-        input_tensor['image'] = self.image_loader(image_path)
+        input_tensor['image'] = self.image_loader.load_image(image_path)
         # from transformers import AutoTokenizer
         # tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct')
         # print('--------------------------------------------------------')

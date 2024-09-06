@@ -19,7 +19,7 @@ class BaseImageLoader(ABC):
         self.image_process_mode = image_process_mode
 
     @abstractmethod
-    def __call__(self, image_path: Optional[str]) -> torch.Tensor:
+    def load_image(self, image_path: Optional[str]) -> torch.Tensor:
         '''Load and preprocess image'''
         pass
 
@@ -84,7 +84,7 @@ class SingleTowersImageLoader(BaseImageLoader):
     def _resize(pil_image: Image.Image, size: int) -> Image.Image:
         return pil_image.resize((size, size))
 
-    def __call__(self, image_path: Optional[str]) -> torch.Tensor:
+    def load_image(self, image_path: Optional[str]) -> torch.Tensor:
         '''Load and preprocess image'''
         if image_path is None:
             return torch.randn(3, self.image_size, self.image_size)
@@ -107,8 +107,8 @@ class MultiTowersImageLoader(BaseImageLoader):
         ]
         self.image_sizes = [IMAGE_SIZE[model_name] for model_name in vision_model_list]
 
-    def __call__(self, image_path: Optional[str]) -> torch.Tensor:
+    def load_image(self, image_path: Optional[str]) -> torch.Tensor:
         '''Load and preprocess multiple images'''
-        images = [loader(image_path) for loader in self.image_loader_list]
+        images = [loader.load_image(image_path) for loader in self.image_loader_list]
         images = torch.cat([image.view(3, -1) for image in images], dim=1)  # type: ignore
         return images
