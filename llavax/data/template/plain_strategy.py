@@ -30,6 +30,8 @@ class PlainStrategy(TemplateStrategy):
         return None
 
     def _format_content(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
+        if len(messages) == 3 and messages[0]['role'] == 'system':
+            messages = messages[1:]
         assert len(messages) == 2 and IMAGE_MARK in messages[0]['content']
         messages[0]['content'] = self.num_vision_token * self.pad_token
         messages[1]['content'] = messages[1]['content'].strip()
