@@ -26,7 +26,7 @@ class TemplateApplier:
         self.num_vision_token = num_vision_token
         self.is_training = is_training
         self.template_strategy = self._get_template_strategy()
-        self.tokenizer.chat_template = self.template_strategy.get_chat_template()
+        self.chat_template = self.template_strategy.get_chat_template()
         assert self.tokenizer.padding_side == 'right'
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id = self.tokenizer.pad_token_id
@@ -55,6 +55,7 @@ class TemplateApplier:
         formated_messages = self.template_strategy.format_dialog(messages)
         templated_result: BatchEncoding = self.tokenizer.apply_chat_template(
             conversation=formated_messages,
+            chat_template=self.chat_template,
             tokenize=True,
             truncation=True,
             return_tensors='pt',
