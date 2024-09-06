@@ -170,7 +170,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         )
         input_tensor['image'] = self.image_loader.load_image(image_path)
         # from transformers import AutoTokenizer
-        # tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct')
+        # tokenizer = AutoTokenizer.from_pretrained('lmsys/vicuna-7b-v1.5')
         # print('--------------------------------------------------------')
         # length = len(input_tensor['input_ids'])
         # for i in range(length):
@@ -178,7 +178,7 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
         #           input_tensor['attention_mask'][i].item(),
         #           input_tensor['labels'][i].item(),
         #           input_tensor['vision_token_pos'][i].item(),
-        #           tokenizer.decode(input_tensor['input_ids'][i]), sep='\t')
+        #           f"'{tokenizer.decode(input_tensor['input_ids'][i])}'", sep='\t')
         # print('--------------------------------------------------------')
         # raise ValueError('Stop here')
         return input_tensor
