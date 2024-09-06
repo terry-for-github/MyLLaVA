@@ -1,11 +1,12 @@
 from typing import Optional
 from copy import deepcopy
+import logging
 
 import torch
 from torch import Tensor
 from transformers import PreTrainedTokenizerBase, BatchEncoding
 
-from ...constants import IMAGE_MARK, IGNORE_INDEX
+from ...constants import IGNORE_INDEX
 
 from .template_strategy import TemplateStrategy
 from .plain_strategy import PlainStrategy
@@ -42,16 +43,34 @@ class TemplateApplier:
         else:
             raise ValueError(f'Unknown strategy: {self.strategy}')
 
+    def _add_system_message(
+        self,
+        messages: list[dict[str, str]],
+        system_prompt: Optional[str],
+    ) -> list[dict[str, str]]:
+        if messages[0]['role'] != 'system':
+            if system_prompt is None:
+                system_prompt = self.template_strategy.system_prompt
+            if system_prompt is not None and system_prompt != '':
+                messages = [dict(role='system', content=system_prompt)] + messages
         else:
-            raise ValueError(f'Unknown strategy: {strategy}')
+            if system_prompt is not None:
+                raise ValueError('system_prompt is not None but the first message is system')
+            else:
+                logging.warn('add_system_message is True but the system message is '
+                             ' already in the first message. Skip adding.')
+        return messages
 
     def dialog_to_input(
         self,
         messages: list[dict[str, str]],
+        add_system_message: bool = True,
         system_prompt: Optional[str] = None
     ) -> dict[str, Tensor]:
-        if system_prompt:
-            messages = [{'role': 'system', 'content': system_prompt}] + messages
+        if len(messages) == 0:
+            raise ValueError('Empty messages. Something wrong with the data.')
+        if add_system_message:
+            messages = self._add_system_message(messages, system_prompt)
         formated_messages = self.template_strategy.format_dialog(messages)
         templated_result: BatchEncoding = self.tokenizer.apply_chat_template(
             conversation=formated_messages,
