@@ -36,7 +36,7 @@ if [ $is_pretrain -eq 1 ]; then
     IS_PLAIN=true
     BATCH_SIZE=256
 else
-    MM_ADAPTER_PATH=checkpoints/llava-llama3.1-8b-mlp2x-double-pretrain/model.safetensors
+    MM_ADAPTER_PATH=checkpoints/${MODEL_NAME}-pretrain/model.safetensors
     JSON_PATH=json/llava_v1_5_mix665k.json
     IMAGE_FOLDER=/userhome/Dataset/LLaVA-Finetune
     ZERO_JSON=configs/zero3.json
