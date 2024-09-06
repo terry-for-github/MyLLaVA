@@ -163,10 +163,10 @@ class LazySingleImageAtFirstDialogDataset(Dataset):
             if image_file is not None else None
         )
         input_tensor = self.template_applier.dialog_to_input(dialog)
-        input_tensor['image_mask'] = (
-            torch.zeros(self.num_vision_token, dtype=torch.bool)
-            if image_path is None else
-            torch.ones(self.num_vision_token, dtype=torch.bool)
+        input_tensor['image_mask'] = torch.full(
+            (self.num_vision_token,),
+            image_path is not None,
+            dtype=torch.bool
         )
         input_tensor['image'] = self.image_loader.load_image(image_path)
         # from transformers import AutoTokenizer
