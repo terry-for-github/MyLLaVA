@@ -24,7 +24,6 @@ LLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
 # LLM_MODEL=meta-llama/Meta-Llama-3.1-8B-Instruct
 STRATEGY=llama3
 
-ACC_NUM=4
 
 if [ $is_pretrain -eq 1 ]; then
     MODEL_NAME=${MODEL_NAME}-pretrain
@@ -35,6 +34,7 @@ if [ $is_pretrain -eq 1 ]; then
     TUNE_LLM=false
     IS_PLAIN=true
     BATCH_SIZE=256
+    ACC_NUM=2
 else
     MM_ADAPTER_PATH=checkpoints/${MODEL_NAME}-pretrain/model.safetensors
     JSON_PATH=json/llava_v1_5_mix665k.json
@@ -43,6 +43,7 @@ else
     TUNE_LLM=true
     IS_PLAIN=false
     BATCH_SIZE=128
+    ACC_NUM=4
 fi
 
 # launch params
