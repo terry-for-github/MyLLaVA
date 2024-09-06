@@ -1,3 +1,4 @@
+from typing import Optional
 from abc import ABC, abstractmethod
 
 
@@ -27,7 +28,7 @@ class TemplateStrategy(ABC):
 
     @property
     @abstractmethod
-    def system_prompt(self) -> str:
+    def system_prompt(self) -> Optional[str]:
         pass
 
     def format_dialog(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
