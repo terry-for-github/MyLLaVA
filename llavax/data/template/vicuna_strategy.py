@@ -53,7 +53,10 @@ class VicunaStrategy(TemplateStrategy):
         if len(messages) == 0:
             return messages
         for message in messages:
-            message['content'] = message['content'].replace(
-                IMAGE_MARK, self.num_vision_token * self.pad_token
-            ).strip()
+            cnt = message['content'].count(IMAGE_MARK)
+            assert cnt <= 1
+            if cnt == 0:
+                continue
+            message['content'] = self.num_vision_token * self.pad_token + \
+                message['content'].replace(IMAGE_MARK, '').strip()
         return messages
