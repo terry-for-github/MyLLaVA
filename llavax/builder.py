@@ -23,7 +23,7 @@ from .constants import CACHE_DIR
 
 def build_tokenizer(
     model_name_or_path: str,
-    model_max_length: int
+    model_max_length: Optional[int] = None
 ) -> PreTrainedTokenizerBase:
     # You need to have sentencepiece installed to convert a slow tokenizer to a fast one.
     # --> pip install sentencepiece protobuf
