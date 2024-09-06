@@ -2,7 +2,8 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 from transformers import LlamaConfig, LlamaModel, LlamaForCausalLM
 
-from .llava_meta import LlavaMetaModel, LlavaMetaForCausalLM, LlavaMetaConfig
+from .llava_meta import LlavaMetaModel, LlavaMetaConfig, llava_head
+from ..vision import BaseAdapter, BaseVisionTower
 
 
 # LlavaMetaConfig must be the first base class
@@ -17,9 +18,7 @@ class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
     config_class = LlavaLlamaConfig
 
 
-# LlavaMetaForCausalLM has no __init__ method
-# So it can also be the second base class
-class LlavaLlamaForCausalLM(LlavaMetaForCausalLM, LlamaForCausalLM):
+class LlavaLlamaForCausalLM(LlamaForCausalLM):
     config_class = LlavaLlamaConfig
 
     def __init__(self, config):
@@ -30,6 +29,21 @@ class LlavaLlamaForCausalLM(LlavaMetaForCausalLM, LlamaForCausalLM):
 
         # Initialize weights and apply final processing
         self.post_init()
+
+    def get_vision_tower(self) -> BaseVisionTower:
+        return self.model.vision_tower
+
+    def get_mm_adapter(self) -> BaseAdapter:
+        return self.model.mm_adapter
+
+    @llava_head(is_forward=True)
+    def forward(self, *args, **kwargs):
+        return super().forward(*args, **kwargs)
+
+    @torch.no_grad()
+    @llava_head(is_forward=False)
+    def generate(self, *args, **kwargs):
+        return super().generate(*args, **kwargs)
 
 
 AutoConfig.register("llava_llama", LlavaLlamaConfig)
